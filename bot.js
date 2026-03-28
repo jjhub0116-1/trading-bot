@@ -17,6 +17,9 @@ const PORT = process.env.PORT || 3000;
 // Essential Middleware strictly allowing Postman to send JSON formatted payloads dynamically
 app.use(express.json());
 
+// Serve the stunning local frontend web UI natively bypassing CORS explicitly
+app.use(express.static('public'));
+
 // Bind the new REST API Routes explicitly securely natively
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', ordersRoutes);

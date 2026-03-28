@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Engine Live Console ⚡</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f8fafc;
+            min-height: 100vh;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+        }
+        
+        h1 { 
+            font-weight: 800; 
+            font-size: 2.5rem;
+            background: -webkit-linear-gradient(#38bdf8, #818cf8); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+        
+        .card {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 24px 50px -12px rgba(0,0,0,0.25);
+            transition: transform 0.2s ease, border-color 0.2s;
+        }
+        .card:hover { 
+            transform: translateY(-2px); 
+            border-color: rgba(56, 189, 248, 0.4); 
+        }
+
+        h2 { 
+            font-size: 1.25rem; 
+            font-weight: 600; 
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+            padding-bottom: 1rem; 
+            margin-bottom: 1.5rem; 
+            color: #38bdf8;
+        }
+
+        .form-group { margin-bottom: 1.2rem; }
+        label { display: block; font-size: 0.875rem; color: #94a3b8; margin-bottom: 0.5rem; font-weight: 600;}
+        
+        input, select {
+            width: 100%; 
+            padding: 0.85rem; 
+            background: rgba(0,0,0,0.2); 
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #fff; 
+            border-radius: 8px; 
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s ease;
+        }
+        input:focus, select:focus { 
+            outline: none; 
+            border-color: #38bdf8; 
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+            background: rgba(0,0,0,0.4);
+        }
+        select option {
+            background: #1e293b;
+            color: white;
+        }
+
+        button {
+            width: 100%; 
+            padding: 1rem; 
+            background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 14px 0 rgba(14, 165, 233, 0.39);
+        }
+        button:hover { 
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px 0 rgba(14, 165, 233, 0.39);
+        }
+        button:active { 
+            transform: scale(0.98); 
+        }
+
+        .data-box {
+            background: rgba(0,0,0,0.3); 
+            padding: 1.5rem; 
+            border-radius: 8px;
+            font-family: monospace; 
+            color: #a7f3d0; 
+            min-height: 120px;
+            overflow-y: auto; 
+            white-space: pre-wrap;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+            line-height: 1.5;
+        }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .stat-card {
+            background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%); 
+            padding: 1.5rem; 
+            border-radius: 12px;
+            text-align: center; 
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .stat-value { font-size: 2rem; font-weight: 800; color: #fff; margin-top: 0.5rem;}
+        
+        #dashboard { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="app-wrapper">
+        <div class="header">
+            <h1>Trading Engine Live Console ⚡</h1>
+            <p style="color: #94a3b8; margin-top: 0.5rem; font-weight: 300;">Secure Express & MongoDB Intercept Dashboard</p>
+        </div>
+
+        <!-- LOGIN SCREEN -->
+        <div style="grid-column: 1/-1; display:flex; justify-content: center; width:100%;">
+            <div class="card" id="login-screen" style="width: 100%; max-width: 400px;">
+                <h2>System Authentication</h2>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="email" value="smriti@test.com">
+                </div>
+                <div class="form-group">
+                    <label>Master Password</label>
+                    <input type="password" id="password" value="hashed">
+                </div>
+                <button onclick="login()">Authenticate securely</button>
+                <div id="login-error" style="color: #fca5a5; margin-top: 1rem; font-size: 0.85rem; text-align:center;"></div>
+            </div>
+        </div>
+
+        <!-- MAIN DASHBOARD -->
+        <div class="container" id="dashboard" style="grid-column: 1/-1;">
+            
+            <div class="card">
+                <h2>Active Wallet & Profile</h2>
+                <div class="stat-grid" style="margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <div style="font-size:0.8rem; color:#94a3b8; text-transform: uppercase; letter-spacing: 1px;">Logged In As</div>
+                        <div class="stat-value" id="disp-username">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div style="font-size:0.8rem; color:#94a3b8; text-transform: uppercase; letter-spacing: 1px;">Liquid Capital</div>
+                        <div class="stat-value" style="color: #34d399;" id="disp-balance">$0.00</div>
+                    </div>
+                </div>
+                
+                <h2>Live Portfolio Holdings</h2>
+                <div class="data-box" id="portfolio-data">Fetching native Mongoose models...</div>
+            </div>
+
+            <div class="card">
+                <h2>Inject Native Trade</h2>
+                <div class="stat-grid" style="gap: 1.5rem 1rem;">
+                    <div class="form-group">
+                        <label>Action Direction</label>
+                        <select id="t-side">
+                            <option value="BUY">BUY</option>
+                            <option value="SELL">SELL</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Asset Class Target</label>
+                        <select id="t-stock">
+                            <option value="1">1 - AAPL (Apple)</option>
+                            <option value="2">2 - NOK (Nokia)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Total Quantity</label>
+                        <input type="number" id="t-qty" value="5">
+                    </div>
+                    <div class="form-group">
+                        <label>Order Priority Type</label>
+                        <select id="t-type">
+                            <option value="MARKET">MARKET</option>
+                            <option value="LIMIT">LIMIT</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Safety Stop Loss ($)</label>
+                        <input type="number" id="t-sl" value="90">
+                    </div>
+                    <div class="form-group">
+                        <label>Profit Target ($)</label>
+                        <input type="number" id="t-tp" value="170">
+                    </div>
+                </div>
+                <button onclick="placeTrade()" style="margin-top: 1.5rem; background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.39);">Deploy Native Hook</button>
+                
+                <div id="trade-log" class="data-box" style="margin-top: 1.5rem; background: rgba(0,0,0,0.5); border: 1px solid #3f3f46; color:#e4e4e7; min-height:100px;">Awaiting engine commands...</div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    currentUser = data.user;
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('dashboard').style.display = 'grid';
+                    
+                    document.getElementById('disp-username').innerText = currentUser.name;
+                    document.getElementById('disp-balance').innerText = `$${currentUser.balance}`;
+                    
+                    fetchPortfolio();
+                } else {
+                    document.getElementById('login-error').innerText = "Login Failed: " + data.message;
+                }
+            } catch (err) {
+                document.getElementById('login-error').innerText = "REST API Fault: " + err.message;
+            }
+        }
+
+        async function fetchPortfolio() {
+            try {
+                const res = await fetch(`/api/portfolio/${currentUser.id}`);
+                const data = await res.json();
+                
+                let htmlStr = '';
+                if(data.length === 0) htmlStr = "Portfolio structurally empty.\nReady for orders.";
+                
+                data.forEach(pos => {
+                    htmlStr += `📊 Asset [${pos.stock_id}] | Net: ${pos.net_quantity} | Cost: $${pos.average_price.toFixed(2)}\n`;
+                });
+                
+                document.getElementById('portfolio-data').innerText = htmlStr;
+
+                // Sync the Wallet seamlessly!
+                const wRes = await fetch(`/api/wallet/${currentUser.id}`);
+                const wData = await wRes.json();
+                document.getElementById('disp-balance').innerText = `$${wData.total_balance}`;
+
+            } catch (err) {
+                document.getElementById('portfolio-data').innerText = "API Pipeline failure loading records.";
+            }
+        }
+
+        async function placeTrade() {
+            const logBox = document.getElementById('trade-log');
+            logBox.innerText = "Encrypting transaction & sending to Mongoose...";
+            
+            const payload = {
+                userId: currentUser.id,
+                stockId: parseInt(document.getElementById('t-stock').value),
+                quantity: parseInt(document.getElementById('t-qty').value),
+                orderType: document.getElementById('t-type').value,
+                price: 0,
+                stopLoss: parseInt(document.getElementById('t-sl').value),
+                target: parseInt(document.getElementById('t-tp').value),
+                side: document.getElementById('t-side').value
+            };
+
+            try {
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    logBox.innerHTML = `<span style="color:#10b981;">✅ TRADE GRANTED NATIVELY</span>\nReceipt ID: ${data.orderId}\n\n` + JSON.stringify(payload, null, 2);
+                    
+                    // The Engine takes a split second to fire Portfolio updates realistically.
+                    setTimeout(fetchPortfolio, 1000); 
+                } else {
+                    logBox.innerHTML = `<span style="color:#ef4444;">❌ TRANSACTION FAULT</span>\nReason: ${data.message}`;
+                }
+            } catch (err) {
+                logBox.innerHTML = `<span style="color:#ef4444;">❌ CRITICAL BACKEND FAULT</span>\n${err.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
