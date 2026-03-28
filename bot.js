@@ -2,23 +2,39 @@ const express = require('express');
 const connectDB = require("./config/db");
 const { processAllOpenOrders } = require("./modules/tradeEngine");
 
+// Import newly created modular routes
+const authRoutes = require('./routes/auth');
+const ordersRoutes = require('./routes/orders');
+const portfolioRoutes = require('./routes/portfolio');
+const walletRoutes = require('./routes/wallet');
+const stockRoutes = require('./routes/stocks');
+
 const TICK_INTERVAL_MS = 3000; // Ultra fast 3-second heartbeat
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Render Sleep-Prevention Endpoint! UptimeRobot hits this continuously.
+// Essential Middleware strictly allowing Postman to send JSON formatted payloads dynamically
+app.use(express.json());
+
+// Bind the new REST API Routes explicitly securely natively
+app.use('/api/auth', authRoutes);
+app.use('/api/orders', ordersRoutes);
+app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/stocks', stockRoutes);
+
+// Render Sleep-Prevention Endpoint
 app.get('/', (req, res) => {
-    res.send('Trading Bot Engine is Alive and Ticking! 🚀');
+    res.send('Trading Bot Engine & REST API is Alive and Ticking! 🚀');
 });
 
 async function startBot() {
     try {
         await connectDB();
         console.log("\n🟢 MongoDB Atlas Trading Bot Server Live Started!");
-        console.log(`⏱️ Framework continuously scanning internal MongoDB tables every ${TICK_INTERVAL_MS / 1000} seconds loop natively...`);
+        console.log(`⏱️ Engine continuously scanning internal MongoDB tables every ${TICK_INTERVAL_MS / 1000} seconds...`);
 
-        // The actual background trading engine loop
         setInterval(async () => {
             try {
                 process.stdout.write(".");
@@ -28,13 +44,12 @@ async function startBot() {
             }
         }, TICK_INTERVAL_MS);
 
-        // Binds the Express Web Server to Render's dynamically assigned port entirely keeping it alive
         app.listen(PORT, () => {
-            console.log(`🌐 Keep-Alive Web Server securely listening on port ${PORT} to prevent application idle sleeping!`);
+            console.log(`🌐 REST API Server securely listening on port ${PORT} to intercept web traffic!`);
         });
 
     } catch (error) {
-        console.error("\nFailed to jumpstart continuously deployed active loop:", error);
+        console.error("\nFailed to jumpstart server active loop:", error);
     }
 }
 
