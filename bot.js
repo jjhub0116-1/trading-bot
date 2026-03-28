@@ -40,6 +40,13 @@ async function startBot() {
         console.log("\n🟢 MongoDB Atlas Trading Bot Server Live Started!");
         console.log(`⏱️ Engine continuously scanning internal MongoDB tables every ${TICK_INTERVAL_MS / 1000} seconds...`);
 
+        // Start Real-Time Websocket securely bypassing unauthenticated crashes explicitly natively
+        if (process.env.ALPACA_API_KEY) {
+            startLiveStream();
+        } else {
+            console.log("⚠️ No Alpaca API Keys explicitly found securely natively. Live Data is currently offline.");
+        }
+
         setInterval(async () => {
             try {
                 process.stdout.write(".");
