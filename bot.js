@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const connectDB = require("./config/db");
 const { processAllOpenOrders } = require("./modules/tradeEngine");
@@ -8,6 +9,7 @@ const ordersRoutes = require('./routes/orders');
 const portfolioRoutes = require('./routes/portfolio');
 const walletRoutes = require('./routes/wallet');
 const stockRoutes = require('./routes/stocks');
+const { startLiveStream } = require('./modules/marketStream');
 
 const TICK_INTERVAL_MS = 3000; // Ultra fast 3-second heartbeat
 
