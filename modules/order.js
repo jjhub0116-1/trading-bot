@@ -19,6 +19,19 @@ async function placeOrder(userId, stockId, quantity, orderType, price, stopLoss,
       if (!hasEquity) {
         return "Insufficient Equity Limits (Share Count Exceeded)";
       }
+    } else if (side === "SELL") {
+      const PortfolioModel = require('../models/Portfolio');
+      const holdings = await PortfolioModel.findOne({ user_id: userId, stock_id: stockId });
+
+      const OrderModel = require('../models/Order');
+      const openSells = await OrderModel.find({ user_id: userId, stock_id: stockId, side: 'SELL', status: 'OPEN' });
+      let lockedQty = 0;
+      openSells.forEach(o => lockedQty += o.quantity);
+
+      const availableQty = holdings ? holdings.net_quantity - lockedQty : 0;
+      if (quantity > availableQty) {
+        return "Insufficient Shares (Or locked in open orders)";
+      }
     }
 
     const orderId = "ORD_" + Date.now();

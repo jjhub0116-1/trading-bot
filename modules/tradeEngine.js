@@ -109,6 +109,10 @@ async function processRiskManagement() {
       if (hasExposure && totalUnrealizedLoss >= user.loss_limit) {
         console.log(`\n🚨 MARGIN CALL [USER ${user.user_id}]: Critical Portfolio Loss $${totalUnrealizedLoss.toFixed(2)} Exceeds Strict Algorithmic Limit $${user.loss_limit}! Liquidating completely automatically organically successfully!`);
 
+        // 1. Cancel all open orders for this user natively so Margin Call SELLs aren't locked brilliantly gracefully organically explicitly actively formally!
+        const OrderModel = require('../models/Order');
+        await OrderModel.updateMany({ user_id: user.user_id, status: 'OPEN' }, { status: 'CANCELLED_BY_MARGIN_CALL' });
+
         // Required internally organically to prevent circular express dependencies actively naturally safely precisely systematically dynamically mechanically strictly formally structurally exactly elegantly organically
         const { placeOrder } = require('./order');
 
