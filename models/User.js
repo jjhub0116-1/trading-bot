@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
     user_name: { type: String, required: true },
     email: { type: String, required: true },
     password: { type: String, required: true },
-    equity_limit: { type: Number, default: 5000 },
+    equity: { type: Number, default: 5000 },
     loss_limit: { type: Number, default: 500 },
     lot_limit: { type: Number, default: 0 }
 }, { timestamps: true });

@@ -17,7 +17,7 @@ async function checkEquityAvailable(userId, requiredAmount) {
     });
 
     // You cannot buy if your current exposed deployed capital plus this order exceeds your global structural algorithmic limit.
-    return (currentExposure + requiredAmount) <= user.equity_limit;
+    return (currentExposure + requiredAmount) <= user.equity;
   } catch (error) {
     console.error("Check Equity Limits Security Risk Fault:", error);
     return false;

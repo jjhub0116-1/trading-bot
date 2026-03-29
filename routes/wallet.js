@@ -19,9 +19,9 @@ router.get('/', authMiddleware, async (req, res) => {
         res.json({
             user_id: user.user_id,
             user_name: user.user_name,
-            equity_limit: user.equity_limit,
+            equity: user.equity,
             used_equity: currentExposure,
-            available_equity: user.equity_limit - currentExposure,
+            available_equity: user.equity - currentExposure,
             loss_limit: user.loss_limit
         });
     } catch (err) {

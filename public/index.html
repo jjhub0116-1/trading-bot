@@ -255,12 +255,12 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Safety Stop Loss ($)</label>
-                        <input type="number" id="t-sl" value="90">
+                        <label>Safety Stop Loss ($) (Optional)</label>
+                        <input type="number" id="t-sl" placeholder="e.g. 90 or leave blank">
                     </div>
                     <div class="form-group">
-                        <label>Profit Target ($)</label>
-                        <input type="number" id="t-tp" value="170">
+                        <label>Profit Target ($) (Optional)</label>
+                        <input type="number" id="t-tp" placeholder="e.g. 170 or leave blank">
                     </div>
                 </div>
                 <button onclick="placeTrade()"
@@ -346,8 +346,8 @@
                 quantity: parseInt(document.getElementById('t-qty').value),
                 orderType: document.getElementById('t-type').value,
                 price: 0,
-                stopLoss: parseInt(document.getElementById('t-sl').value),
-                target: parseInt(document.getElementById('t-tp').value),
+                stopLoss: document.getElementById('t-sl').value ? parseFloat(document.getElementById('t-sl').value) : null,
+                target: document.getElementById('t-tp').value ? parseFloat(document.getElementById('t-tp').value) : null,
                 side: document.getElementById('t-side').value
             };
 
