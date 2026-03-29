@@ -44,12 +44,13 @@ Authenticates a user and retrieves their base information.
 Fires a massive order payload straight into the trade execution engine. It handles Unified Bracket Orders automatically.
 - **Method:** `POST`
 - **Route:** `/orders`
-- **Headers:** `Content-Type: application/json`
+- **Headers:** 
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <YOUR_JWT_TOKEN>`
 
 **Request Body:**
 ```json
 {
-  "userId": 2,
   "stockId": 2,
   "quantity": 5,
   "orderType": "MARKET",
@@ -67,28 +68,32 @@ Fires a massive order payload straight into the trade execution engine. It handl
 - `stopLoss` and `target` triggers are optional.
 
 ### **Get User Trade History**
-Fetches massive lists of executed and open orders for a specific user natively.
+Fetches massive lists of executed and open orders natively exclusively for the authenticated user.
 - **Method:** `GET`
-- **Route:** `/orders/:userId` (Where `:userId` is the user's numeric ID)
+- **Route:** `/orders`
+- **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
 
 ---
 
 ## 💼 3. Portfolio & Balances
 
 ### **Fetch Active Portfolio**
-Retrieves all completely open asset positions held by a user currently dynamically.
+Retrieves all completely open asset positions held mathematically dynamically.
 - **Method:** `GET`
-- **Route:** `/portfolio/:userId`
+- **Route:** `/portfolio`
+- **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
 
 ### **Get Wallet Balance**
-Retrieves the user's available purchasing power (cash balance).
+Retrieves the authorized user's available cash natively securely.
 - **Method:** `GET`
-- **Route:** `/wallet/:userId`
+- **Route:** `/wallet`
+- **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
 
 ### **Get Wallet Transaction Ledger**
-Retrieves the chronological list of every dollar moving in and out natively.
+Retrieves the chronologically authenticated list of every dollar moving in and out natively.
 - **Method:** `GET`
-- **Route:** `/wallet/transactions/:userId`
+- **Route:** `/wallet/transactions`
+- **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
 
 ---
 

@@ -2,12 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { placeOrder } = require('../modules/order');
 const Order = require('../models/Order');
+const authMiddleware = require('../middleware/authMiddleware');
 
 // POST /api/orders
-// Send raw JSON: { "userId": 2, "stockId": 2, "quantity": 5, "orderType": "MARKET", "price": 0, "stopLoss": 90, "target": 170, "side": "BUY" }
-router.post('/', async (req, res) => {
+// Send raw JSON cleanly (userId strictly abstracted natively securely): { "stockId": 2, "quantity": 5, "orderType": "MARKET", "price": 0, "stopLoss": 90, "target": 170, "side": "BUY" }
+router.post('/', authMiddleware, async (req, res) => {
     try {
-        const { userId, stockId, quantity, orderType, price, stopLoss, target, side } = req.body;
+        const { stockId, quantity, orderType, price, stopLoss, target, side } = req.body;
+        const userId = req.user.id; // Firmly mathematically extracted from verified explicit JWT Header!
 
         // Call the engine's exact central function identically!
         const result = await placeOrder(userId, stockId, quantity, orderType, price, stopLoss, target, side);
@@ -22,10 +24,10 @@ router.post('/', async (req, res) => {
     }
 });
 
-// GET /api/orders/:userId - Fetch historical pipeline execution
-router.get('/:userId', async (req, res) => {
+// GET /api/orders - Fetch historical pipeline execution exclusively for cryptographically authenticated user organically
+router.get('/', authMiddleware, async (req, res) => {
     try {
-        const orders = await Order.find({ user_id: req.params.userId }).sort({ createdAt: -1 });
+        const orders = await Order.find({ user_id: req.user.id }).sort({ createdAt: -1 });
         res.json(orders);
     } catch (err) {
         res.status(500).json({ error: err.message });
