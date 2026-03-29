@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const connectDB = require("./config/db");
-const { processAllOpenOrders } = require("./modules/tradeEngine");
+const { processAllOpenOrders, processRiskManagement } = require("./modules/tradeEngine");
 
 // Import newly created modular routes
 const authRoutes = require('./routes/auth');
@@ -51,6 +51,7 @@ async function startBot() {
             try {
                 process.stdout.write(".");
                 await processAllOpenOrders();
+                await processRiskManagement();
             } catch (err) {
                 console.error("\nTick Error:", err);
             }

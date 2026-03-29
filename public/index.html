@@ -330,7 +330,7 @@
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const wData = await wRes.json();
-                document.getElementById('disp-balance').innerText = `$${wData.total_balance}`;
+                document.getElementById('disp-balance').innerText = `$${wData.available_equity.toFixed(2)}`;
 
             } catch (err) {
                 document.getElementById('portfolio-data').innerText = "API Pipeline failure loading records.";

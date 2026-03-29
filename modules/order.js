@@ -1,6 +1,6 @@
 const Order = require('../models/Order');
 const { getStock } = require("./stocks");
-const { checkWalletBalance, getUserName } = require("./wallet");
+const { checkEquityAvailable, getUserName } = require("./wallet");
 
 let tradeEngine;
 
@@ -15,9 +15,9 @@ async function placeOrder(userId, stockId, quantity, orderType, price, stopLoss,
     const totalCost = executionPrice * quantity;
 
     if (side === "BUY") {
-      const hasBalance = await checkWalletBalance(userId, totalCost);
-      if (!hasBalance) {
-        return "Insufficient Balance";
+      const hasEquity = await checkEquityAvailable(userId, totalCost);
+      if (!hasEquity) {
+        return "Insufficient Equity Limits";
       }
     }
 

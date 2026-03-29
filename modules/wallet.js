@@ -1,25 +1,32 @@
 const User = require('../models/User');
 const WalletTransaction = require('../models/WalletTransaction');
+const Portfolio = require('../models/Portfolio');
 
-async function checkWalletBalance(userId, requiredAmount) {
+async function checkEquityAvailable(userId, requiredAmount) {
   try {
     const user = await User.findOne({ user_id: userId });
-    return user && user.total_balance >= requiredAmount;
+    if (!user) return false;
+
+    // Dynamically calculate the mathematically exact exposure of all current active asset holds natively.
+    const holdings = await Portfolio.find({ user_id: userId });
+    let currentExposure = 0;
+    holdings.forEach(h => {
+      if (h.net_quantity > 0) {
+        currentExposure += (h.average_price * h.net_quantity);
+      }
+    });
+
+    // You cannot buy if your current exposed deployed capital plus this order exceeds your global structural algorithmic limit.
+    return (currentExposure + requiredAmount) <= user.equity_limit;
   } catch (error) {
-    console.error("Check Wallet Error:", error);
+    console.error("Check Equity Limits Security Risk Fault:", error);
     return false;
   }
 }
 
-async function updateWallet(userId, username, amount, stockId, side) {
+async function logTransaction(userId, username, amount, stockId, side) {
   try {
-    const value = side === 'BUY' ? -amount : amount;
-
-    await User.findOneAndUpdate(
-      { user_id: userId },
-      { $inc: { total_balance: value } }
-    );
-
+    // We maintain the literal ledger so they still formally safely see an audit history natively.
     const transactionId = "TXN_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
     await WalletTransaction.create({
       transaction_id: transactionId,
@@ -29,10 +36,8 @@ async function updateWallet(userId, username, amount, stockId, side) {
       stock_id: stockId,
       side: side
     });
-
-    console.log(`💰 Wallet updated for User: ${userId}. Amount: ${value}`);
   } catch (error) {
-    console.error("Update Wallet Error:", error);
+    console.error("Ledger Logger Fault Exception organically handled:", error);
   }
 }
 
@@ -45,4 +50,4 @@ async function getUserName(userId) {
   }
 }
 
-module.exports = { checkWalletBalance, updateWallet, getUserName };
+module.exports = { checkEquityAvailable, logTransaction, getUserName };

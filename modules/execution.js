@@ -1,7 +1,7 @@
 const Order = require('../models/Order');
 const Trade = require('../models/Trade');
 const { updatePortfolio } = require("./portfolio");
-const { updateWallet } = require("./wallet");
+const { logTransaction } = require("./wallet");
 
 async function executeTrade(order, executionPrice) {
   try {
@@ -41,8 +41,8 @@ async function executeTrade(order, executionPrice) {
       order.side
     );
 
-    // 4. Update Wallet 
-    await updateWallet(
+    // 4. Update Risk Ledger seamlessly natively
+    await logTransaction(
       order.user_id,
       order.user_name,
       totalCost,

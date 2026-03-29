@@ -83,8 +83,8 @@ Retrieves all completely open asset positions held mathematically dynamically.
 - **Route:** `/portfolio`
 - **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
 
-### **Get Wallet Balance**
-Retrieves the authorized user's available cash natively securely.
+### **Get Account Equity & Margin Limits**
+Retrieves the exact algorithmic Equity Limit, dynamic deployed exposure, exact Available Buying Power, and Maximum Loss Margin safely dynamically seamlessly cleanly!
 - **Method:** `GET`
 - **Route:** `/wallet`
 - **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
