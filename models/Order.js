@@ -11,7 +11,12 @@ const orderSchema = new mongoose.Schema({
     price: { type: Number },
     stop_loss: { type: Number },
     target: { type: Number },
-    status: { type: String, enum: ['OPEN', 'EXECUTED', 'CANCELLED'], default: 'OPEN' }
+    status: { type: String, enum: ['OPEN', 'EXECUTED', 'CANCELLED', 'CANCELLED_BY_MARGIN_CALL'], default: 'OPEN' }
 }, { timestamps: true });
+
+// Compound index: the engine queries by status+user_id on every tick.
+// Without this, Mongo does a full collection scan at scale.
+orderSchema.index({ status: 1, user_id: 1 });
+orderSchema.index({ status: 1, stock_id: 1 });
 
 module.exports = mongoose.model('Order', orderSchema);

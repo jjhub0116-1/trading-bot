@@ -23,13 +23,12 @@ router.post('/login', async (req, res) => {
 
         res.json({
             success: true,
-            message: "Login Successfully Encrypted",
+            message: "Login Successful",
             token: token,
             user: {
                 id: user.user_id,
                 name: user.user_name,
-                email: user.email,
-                balance: user.total_balance
+                email: user.email
             }
         });
     } catch (err) {

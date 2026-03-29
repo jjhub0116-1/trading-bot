@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const connectDB = require("./config/db");
 const { processAllOpenOrders, processRiskManagement } = require("./modules/tradeEngine");
 
@@ -16,8 +17,17 @@ const TICK_INTERVAL_MS = 3000; // Ultra fast 3-second heartbeat
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Essential Middleware strictly allowing Postman to send JSON formatted payloads dynamically
+// Global rate limiter: max 100 requests per minute per IP
+const limiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests. Please slow down." }
+});
+
 app.use(express.json());
+app.use(limiter);
 
 // Serve the stunning local frontend web UI natively bypassing CORS explicitly
 app.use(express.static('public'));
