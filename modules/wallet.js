@@ -7,17 +7,17 @@ async function checkEquityAvailable(userId, requiredAmount) {
     const user = await User.findOne({ user_id: userId });
     if (!user) return false;
 
-    // Dynamically calculate the mathematically exact exposure of all current active asset holds natively.
+    // Dynamically calculate the total shares exposed
     const holdings = await Portfolio.find({ user_id: userId });
-    let currentExposure = 0;
+    let currentTotalShares = 0;
     holdings.forEach(h => {
       if (h.net_quantity > 0) {
-        currentExposure += (h.average_price * h.net_quantity);
+        currentTotalShares += h.net_quantity;
       }
     });
 
-    // You cannot buy if your current exposed deployed capital plus this order exceeds your global structural algorithmic limit.
-    return (currentExposure + requiredAmount) <= user.equity;
+    // You cannot buy if your total held shares plus this order exceeds your algorithmic share limit.
+    return (currentTotalShares + requiredAmount) <= user.equity;
   } catch (error) {
     console.error("Check Equity Limits Security Risk Fault:", error);
     return false;

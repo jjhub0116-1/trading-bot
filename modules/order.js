@@ -15,9 +15,9 @@ async function placeOrder(userId, stockId, quantity, orderType, price, stopLoss,
     const totalCost = executionPrice * quantity;
 
     if (side === "BUY") {
-      const hasEquity = await checkEquityAvailable(userId, totalCost);
+      const hasEquity = await checkEquityAvailable(userId, quantity);
       if (!hasEquity) {
-        return "Insufficient Equity Limits";
+        return "Insufficient Equity Limits (Share Count Exceeded)";
       }
     }
 
