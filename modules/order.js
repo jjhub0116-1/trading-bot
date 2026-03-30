@@ -1,41 +1,37 @@
 const Order = require('../models/Order');
-const { getStock } = require("./stocks");
-const { checkEquityAvailable, getUserName } = require("./wallet");
-
-let tradeEngine;
+const { getStock } = require('./stocks');
+const { checkEquityAvailable, getUserName } = require('./wallet');
+const { ORDER_STATUS, ORDER_SIDE, ORDER_TYPE } = require('../config/constants');
 
 async function placeOrder(userId, stockId, quantity, orderType, price, stopLoss, target, side) {
   try {
-    if (!quantity || quantity <= 0) throw new Error("Invalid Quantity");
+    if (!quantity || quantity <= 0) throw new Error('Invalid Quantity');
 
     const stock = await getStock(stockId);
-    if (!stock) return "Stock Not Found";
+    if (!stock) return 'Stock Not Found';
 
-    const executionPrice = orderType === "MARKET" ? parseFloat(stock.price) : parseFloat(price);
-    const totalCost = executionPrice * quantity;
+    const executionPrice = orderType === ORDER_TYPE.MARKET ? parseFloat(stock.price) : parseFloat(price);
 
-    if (side === "BUY") {
+    // BUY: check share-count equity limit
+    if (side === ORDER_SIDE.BUY) {
       const hasEquity = await checkEquityAvailable(userId, quantity);
-      if (!hasEquity) {
-        return "Insufficient Equity Limits (Share Count Exceeded)";
-      }
-    } else if (side === "SELL") {
+      if (!hasEquity) return 'Insufficient Equity Limits (Share Count Exceeded)';
+    }
+
+    // SELL: check user actually holds enough unlocked shares
+    if (side === ORDER_SIDE.SELL) {
       const PortfolioModel = require('../models/Portfolio');
       const portfolio = await PortfolioModel.findOne({ user_id: userId });
       const position = portfolio ? portfolio.positions.find(p => p.stock_id === stockId) : null;
 
-      const OrderModel = require('../models/Order');
-      const openSells = await OrderModel.find({ user_id: userId, stock_id: stockId, side: 'SELL', status: 'OPEN' });
-      let lockedQty = 0;
-      openSells.forEach(o => lockedQty += o.quantity);
+      const openSells = await Order.find({ user_id: userId, stock_id: stockId, side: ORDER_SIDE.SELL, status: ORDER_STATUS.OPEN });
+      const lockedQty = openSells.reduce((sum, o) => sum + o.quantity, 0);
 
       const availableQty = position ? position.net_quantity - lockedQty : 0;
-      if (quantity > availableQty) {
-        return "Insufficient Shares (Or locked in open orders)";
-      }
+      if (quantity > availableQty) return 'Insufficient Shares (Or locked in open orders)';
     }
 
-    const orderId = "ORD_" + Date.now();
+    const orderId = 'ORD_' + Date.now();
     const username = await getUserName(userId);
 
     await Order.create({
@@ -43,24 +39,23 @@ async function placeOrder(userId, stockId, quantity, orderType, price, stopLoss,
       user_id: userId,
       user_name: username,
       stock_id: stockId,
-      side: side,
+      side,
       order_type: orderType,
-      quantity: quantity,
+      quantity,
       price: executionPrice || null,
       stop_loss: stopLoss || null,
       target: target || null,
-      status: 'OPEN'
+      status: ORDER_STATUS.OPEN
     });
 
-    if (!tradeEngine) tradeEngine = require("./tradeEngine");
-    if (tradeEngine && tradeEngine.processOrder) {
-      await tradeEngine.processOrder(orderId);
-    }
+    // NOTE: No immediate processOrder() call here.
+    // The tick loop (processAllOpenOrders) is the single execution path.
+    // This prevents the double-execution race condition.
 
     return orderId;
   } catch (error) {
-    console.error("Place Order Error:", error);
-    return "Order Failed";
+    console.error('Place Order Error:', error);
+    return 'Order Failed';
   }
 }
 

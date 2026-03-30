@@ -13,4 +13,7 @@ const tradeSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now }
 });
 
+tradeSchema.index({ order_id: 1 });
+tradeSchema.index({ user_id: 1, timestamp: -1 });
+
 module.exports = mongoose.model('Trade', tradeSchema);

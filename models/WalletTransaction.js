@@ -10,4 +10,10 @@ const walletTransactionSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now }
 });
 
+// Compound index for /api/wallet/transactions endpoint
+walletTransactionSchema.index({ user_id: 1, timestamp: -1 });
+
+// TTL index: auto-purge transactions older than 1 year
+walletTransactionSchema.index({ timestamp: 1 }, { expireAfterSeconds: 31536000 });
+
 module.exports = mongoose.model('WalletTransaction', walletTransactionSchema);

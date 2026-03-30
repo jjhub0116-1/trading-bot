@@ -26,7 +26,7 @@ const limiter = rateLimit({
     message: { error: "Too many requests. Please slow down." }
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '10kb' })); // Prevent multi-GB payload DoS
 app.use(limiter);
 
 // Serve the stunning local frontend web UI natively bypassing CORS explicitly
@@ -57,15 +57,27 @@ async function startBot() {
             console.log("⚠️ No Alpaca API Keys explicitly found securely natively. Live Data is currently offline.");
         }
 
-        setInterval(async () => {
+        const tickInterval = setInterval(async () => {
             try {
-                process.stdout.write(".");
+                process.stdout.write('.');
                 await processAllOpenOrders();
                 await processRiskManagement();
             } catch (err) {
-                console.error("\nTick Error:", err);
+                console.error('\nTick Error:', err);
             }
         }, TICK_INTERVAL_MS);
+
+        // Graceful shutdown — clears interval and closes DB before exit
+        const shutdown = async (signal) => {
+            console.log(`\n${signal} received. Shutting down gracefully...`);
+            clearInterval(tickInterval);
+            const mongoose = require('mongoose');
+            await mongoose.connection.close();
+            console.log('DB connection closed. Exiting.');
+            process.exit(0);
+        };
+        process.on('SIGTERM', () => shutdown('SIGTERM'));
+        process.on('SIGINT', () => shutdown('SIGINT'));
 
         app.listen(PORT, () => {
             console.log(`🌐 REST API Server securely listening on port ${PORT} to intercept web traffic!`);

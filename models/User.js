@@ -9,4 +9,7 @@ const userSchema = new mongoose.Schema({
     loss_limit: { type: Number, default: 500 }
 }, { timestamps: true });
 
+// Explicit index for auth query (findOne by email)
+userSchema.index({ email: 1 }, { unique: true });
+
 module.exports = mongoose.model('User', userSchema);

@@ -7,4 +7,8 @@ const stockSchema = new mongoose.Schema({
     current_price: { type: Number, required: true }
 }, { timestamps: true });
 
+// Critical: market stream fires updateOne({ symbol }) on every trade tick.
+// Without this index, every update is a full collection scan.
+stockSchema.index({ symbol: 1 });
+
 module.exports = mongoose.model('Stock', stockSchema);

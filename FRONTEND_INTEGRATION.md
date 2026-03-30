@@ -25,7 +25,7 @@ The backend uses **JWT (JSON Web Tokens)**. Every protected route requires you t
 ```js
 import axios from 'axios';
 
-const api = axios.create({ baseURL: 'https://your-render-url.onrender.com' });
+const api = axios.create({ baseURL: 'https://trading-bot-e6e6.onrender.com' });
 
 // Attach token to every request automatically
 api.interceptors.request.use(config => {

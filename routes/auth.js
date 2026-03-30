@@ -1,18 +1,33 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const { authenticate } = require('../modules/auth');
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || "SUPER_SECRET_TRADING_KEY_999";
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET env var is required');
+
+// Strict rate limiter for login — 5 attempts per minute per IP
+const loginLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Too many login attempts. Please try again in 1 minute.' }
+});
 
 // POST /api/auth/login
-// Send JSON: { "email": "smriti@test.com", "password": "hashed" }
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
-        const user = await authenticate(email, password);
 
+        if (!email || !password) {
+            return res.status(400).json({ success: false, message: 'Email and password are required.' });
+        }
+
+        const user = await authenticate(email, password);
         if (!user) {
-            return res.status(401).json({ success: false, message: "Invalid credentials" });
+            return res.status(401).json({ success: false, message: 'Invalid credentials.' });
         }
 
         const token = jwt.sign(
@@ -23,13 +38,9 @@ router.post('/login', async (req, res) => {
 
         res.json({
             success: true,
-            message: "Login Successful",
-            token: token,
-            user: {
-                id: user.user_id,
-                name: user.user_name,
-                email: user.email
-            }
+            message: 'Login Successful',
+            token,
+            user: { id: user.user_id, name: user.user_name, email: user.email }
         });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });

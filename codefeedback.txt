@@ -1,0 +1,737 @@
+﻿# Code Review: Trading Bot
+
+
+**Date:** March 29, 2026  
+**Project:** Trading Bot (Node.js + Express + MongoDB Atlas)  
+**Files Reviewed:** `modules/`, `routes/`, `models/`, `config/`, `middleware/`, `bot.js`
+
+
+---
+
+
+## Summary
+
+
+The trading bot implements a real-time order execution engine with MongoDB persistence, WebSocket market data ingestion, and Express REST APIs. The architecture is sound with proper separation of concerns, but there are **critical security vulnerabilities** (plaintext passwords, hardcoded credentials), **race conditions** in the tick loop, **data integrity risks** from missing transactions, and **N+1 query patterns** that will degrade at scale. The codebase is not production-ready until the Critical issues are resolved.
+
+
+---
+
+
+## Findings Summary Table
+
+
+| # | Issue | Severity | File:Line | Recommendation |
+|---|-------|----------|-----------|----------------|
+| 1 | Hardcoded MongoDB URI + credentials | 🔴 Critical | `config/db.js:3` | Use `process.env.MONGO_URI` exclusively |
+| 2 | Plaintext password comparison | 🔴 Critical | `modules/auth.js:5` | Use bcrypt to hash and compare passwords |
+| 3 | Weak JWT secret fallback | 🔴 Critical | `routes/auth.js:5`, `middleware/authMiddleware.js:3` | Throw if env var missing; never fallback |
+| 4 | No body size limit on express.json() | 🔴 Critical | `bot.js:29` | Add `{ limit: '10kb' }` to prevent DoS |
+| 5 | Race condition in tick mutex | 🔴 Critical | `modules/tradeEngine.js:32-36` | Use async-mutex or atomic flag |
+| 6 | Double order execution (immediate + tick) | 🔴 Critical | `modules/order.js:55-58` | Remove duplicate execution path |
+| 7 | Non-atomic multi-document writes | 🔴 Critical | `modules/execution.js:6-72` | Wrap in MongoDB transaction |
+| 8 | Random stock_id collision risk | 🔴 Critical | `modules/marketStream.js:52` | Use deterministic symbol→ID mapping |
+| 9 | Missing index on `symbol` field | 🔴 Critical | `models/Stock.js` | Add `{ symbol: 1 }` index |
+| 10 | Missing index on `user_id` for WalletTransaction | 🟡 Important | `models/WalletTransaction.js` | Add `{ user_id: 1, timestamp: -1 }` |
+| 11 | No rate limit on `/api/auth/login` | 🟡 Important | `routes/auth.js` | Add stricter per-IP limit |
+| 12 | Portfolio positions never pruned | 🟡 Important | `modules/portfolio.js:38-44` | Remove zero-quantity positions |
+| 13 | Silent error swallowing in market stream | 🟡 Important | `modules/marketStream.js:56-58` | Log errors; only ignore transient ones |
+| 14 | No graceful shutdown handler | 🟡 Important | `bot.js` | Handle SIGTERM/SIGINT for clean exit |
+| 15 | Missing input validation on routes | 🟡 Important | `routes/orders.js:11`, `routes/orders.js:30` | Add express-validator or Joi schema |
+| 16 | Margin call uses `>=` instead of `>` | 🟡 Important | `modules/tradeEngine.js:125` | Change to `>` for correct threshold |
+| 17 | WebSocket reconnection without backoff | 🟡 Important | `modules/marketStream.js:65` | Add exponential backoff |
+| 18 | Stale positions returned on empty portfolio | 🟢 Suggestion | `routes/portfolio.js:10` | Return empty array consistently |
+| 19 | No unit tests | 🟢 Suggestion | `package.json` | Add Jest + write critical path tests |
+| 20 | Duplicate bcrypt dependencies | 🟢 Suggestion | `package.json:15-16` | Remove one; prefer bcryptjs |
+| 21 | Magic strings throughout | 🟢 Suggestion | codebase-wide | Extract to constants/enums |
+| 22 | No request timeout | 🟢 Suggestion | `bot.js` | Add timeout middleware |
+| 23 | N+1 in risk management loop | 🗄️ DB | `modules/tradeEngine.js:85-97` | Batch-fetch portfolios |
+| 24 | No lean() on read-only queries | 🗄️ DB | `modules/tradeEngine.js:39`, `modules/tradeEngine.js:42` | Use lean() for performance |
+| 25 | Missing TTL/index on WalletTransaction | 🗄️ DB | `models/WalletTransaction.js` | Consider TTL index for cleanup |
+| 26 | Stock name overwritten with symbol | 🟡 Important | `modules/marketStream.js:50` | Use $setOnInsert for stock_name |
+
+
+---
+
+
+## Critical Issues 🔴
+
+
+### 1. Hardcoded MongoDB Credentials
+**File:** `config/db.js:3`
+
+
+```javascript
+const MONGO_URI = "mongodb+srv://innovisiontechai_db_user:innovision@cluster0.rrcqffl.mongodb.net/?appName=Cluster0";
+```
+
+
+**Why this is critical:** Database credentials are committed to source control. Anyone with repo access can connect to your Atlas cluster and drop data. This is a data breach waiting to happen.
+
+
+**Fix:**
+```javascript
+const connectDB = async () => {
+    const MONGO_URI = process.env.MONGO_URI;
+    if (!MONGO_URI) throw new Error("MONGO_URI env var is required");
+    try {
+        await mongoose.connect(MONGO_URI);
+        console.log("✅ MongoDB Atlas Connected Successfully");
+    } catch (error) {
+        console.error("❌ MongoDB Connection Error:", error);
+        process.exit(1);
+    }
+};
+```
+
+
+---
+
+
+### 2. Plaintext Password Storage & Comparison
+**File:** `modules/auth.js:5`
+
+
+```javascript
+const user = await User.findOne({ email, password });
+```
+
+
+**Why this is critical:** Passwords are stored in plaintext. Any database breach exposes every user's credentials. bcrypt is already in `package.json` but never used.
+
+
+**Fix in `modules/auth.js`:**
+```javascript
+const bcrypt = require('bcryptjs');
+
+
+async function authenticate(email, password) {
+    const user = await User.findOne({ email });
+    if (!user) return null;
+    
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) return null;
+    
+    return user;
+}
+```
+
+
+User signup must hash the password:
+```javascript
+const hashedPassword = await bcrypt.hash(password, 12);
+await User.create({ ..., password: hashedPassword });
+```
+
+
+---
+
+
+### 3. Weak JWT Secret Fallback
+**Files:** `routes/auth.js:5`, `middleware/authMiddleware.js:3`
+
+
+```javascript
+const JWT_SECRET = process.env.JWT_SECRET || "SUPER_SECRET_TRADING_KEY_999";
+```
+
+
+**Why this is critical:** If the env var is accidentally unset, all JWTs are signed with a predictable secret. An attacker can forge any token.
+
+
+**Fix:**
+```javascript
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error("JWT_SECRET env var is required");
+```
+
+
+---
+
+
+### 4. No Request Body Size Limit
+**File:** `bot.js:29`
+
+
+```javascript
+app.use(express.json());
+```
+
+
+**Why this is critical:** Without a limit, an attacker can send multi-GB JSON payloads to exhaust Node's memory and crash the process.
+
+
+**Fix:**
+```javascript
+app.use(express.json({ limit: '10kb' }));
+```
+
+
+---
+
+
+### 5. Race Condition in Tick Mutex
+**File:** `modules/tradeEngine.js:32-36`
+
+
+```javascript
+if (isTickRunning) {
+    return;
+}
+isTickRunning = true;
+```
+
+
+**Why this is critical:** The check-then-set is not atomic. Under Node's single-threaded event loop this rarely triggers, but `setInterval` callbacks can overlap if one tick takes longer than `TICK_INTERVAL_MS`. At 3-second intervals with variable execution time, this WILL cause duplicate processing under load.
+
+
+**Fix — use `async-mutex`:**
+```javascript
+const { Mutex } = require('async-mutex');
+const tickMutex = new Mutex();
+
+
+async function processAllOpenOrders() {
+    const release = await tickMutex.acquire();
+    try {
+        // ... existing tick logic ...
+    } finally {
+        release();
+    }
+}
+```
+
+
+---
+
+
+### 6. Double Order Execution
+**File:** `modules/order.js:55-58`
+
+
+```javascript
+if (!tradeEngine) tradeEngine = require("./tradeEngine");
+if (tradeEngine && tradeEngine.processOrder) {
+    await tradeEngine.processOrder(orderId);
+}
+```
+
+
+**Why this is critical:** `placeOrder` creates an OPEN order AND immediately calls `processOrder` which may execute it. Then `processAllOpenOrders` (the tick loop, runs every 3 seconds) picks up the same OPEN order and executes it again. For MARKET orders this causes double execution and double trades.
+
+
+**Fix — choose one execution path:**
+```javascript
+// Option A: Remove immediate execution from placeOrder (preferred for queue-based engine)
+// Option B: Mark order as EXECUTING in processOrder to prevent tick reprocessing
+```
+
+
+---
+
+
+### 7. Non-Atomic Multi-Document Writes in Trade Execution
+**File:** `modules/execution.js:6-72`
+
+
+The `executeTrade` function performs 4-5 database writes (Order update, Trade insert, Portfolio save, WalletTransaction insert, bracket order creation) without a transaction. If any write fails mid-function, data becomes inconsistent:
+- Order marked EXECUTED but no Trade record created
+- Portfolio updated but no WalletTransaction logged
+- Bracket child order not created but parent executed
+
+
+**Fix — wrap in a MongoDB transaction:**
+```javascript
+async function executeTrade(order, executionPrice) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        // All DB writes here with { session }
+        await Order.findOneAndUpdate(
+            { order_id: order.order_id, status: 'OPEN' },
+            { status: 'EXECUTED' },
+            { session }
+        );
+        // ... rest of writes ...
+        await session.commitTransaction();
+    } catch (error) {
+        await session.abortTransaction();
+        throw error;
+    } finally {
+        session.endSession();
+    }
+}
+```
+
+
+---
+
+
+### 8. Random stock_id Collision
+**File:** `modules/marketStream.js:52`
+
+
+```javascript
+$setOnInsert: { stock_id: Math.floor(Math.random() * 100000) }
+```
+
+
+**Why this is critical:** `Math.random()` can generate duplicate IDs. The `stock_id` field has `unique: true` in the schema. The upsert will fail silently (caught by the empty catch block) and the price update never persists. Price data will be lost.
+
+
+**Fix — derive stock_id deterministically from symbol:**
+```javascript
+// Map symbol → stock_id in a lookup table or hash
+const symbolToId = { 'AAPL': 1, 'TSLA': 2, 'MSFT': 3, 'NOK': 4 };
+const stockId = symbolToId[symbol] || createDeterministicId(symbol);
+
+
+// Or use symbol hash as fallback
+function symbolToId(symbol) {
+    let hash = 0;
+    for (let i = 0; i < symbol.length; i++) {
+        hash = ((hash << 5) - hash) + symbol.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash) % 100000;
+}
+```
+
+
+---
+
+
+### 9. Missing Index on Stock.symbol
+**File:** `models/Stock.js`
+
+
+```javascript
+const stockSchema = new mongoose.Schema({
+    stock_id: { type: Number, required: true, unique: true },
+    symbol: { type: String, required: true },
+    ...
+});
+```
+
+
+**Why this is critical:** Every WebSocket message triggers an `updateOne` on `Stock` filtered by `symbol` (line 45-46 of marketStream.js). With no index, this is a collection scan. At high message volume (millisecond-level trades), this will saturate the primary's CPU and cause severe latency spikes.
+
+
+**Fix:**
+```javascript
+stockSchema.index({ symbol: 1 });
+```
+
+
+---
+
+
+## Important Issues 🟡
+
+
+### 10. Missing Index on WalletTransaction.user_id
+**File:** `models/WalletTransaction.js`
+
+
+The `/api/wallet/transactions` endpoint queries `{ user_id, timestamp: -1 }` (route at `routes/wallet.js:37`). No index exists. At scale, this is a collection scan on an ever-growing ledger.
+
+
+**Fix:**
+```javascript
+walletTransactionSchema.index({ user_id: 1, timestamp: -1 });
+```
+
+
+---
+
+
+### 11. No Specific Rate Limit on Auth Endpoint
+**File:** `routes/auth.js`
+
+
+The global limiter allows 100 req/min per IP. A brute force attack at 99 req/min will eventually crack weak passwords. Login should have stricter limits (e.g., 5 attempts per minute per IP).
+
+
+**Fix:**
+```javascript
+const loginLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    message: { error: "Too many login attempts" }
+});
+router.post('/login', loginLimiter, async (req, res) => { ... });
+```
+
+
+---
+
+
+### 12. Portfolio Positions Never Pruned
+**File:** `modules/portfolio.js:38-44`
+
+
+After selling all shares of a stock, `net_quantity` becomes 0 but the position object stays in the `positions[]` array forever. Over time, arrays fill with dead zero-quantity entries:
+- Wastes document space
+- Increases iteration cost in `checkUserRisk`
+- `getStock` and other loops process stale data
+
+
+**Fix — splice out zero positions:**
+```javascript
+} else if (side === "SELL") {
+    if (!position || position.net_quantity <= 0) return;
+    const qtyToSell = Math.min(executedQuantity, position.net_quantity);
+    const realizedPnl = (executionPrice - position.average_price) * qtyToSell;
+    position.net_quantity -= qtyToSell;
+    position.realized_pnl += realizedPnl;
+
+
+    // Remove position if fully sold
+    if (position.net_quantity <= 0) {
+        portfolio.positions = portfolio.positions.filter(p => p.stock_id !== stockId);
+    }
+}
+```
+
+
+---
+
+
+### 13. Silent Error Swallowing in Market Stream
+**File:** `modules/marketStream.js:56-58`
+
+
+```javascript
+} catch (err) {
+    // Silently swallow minimal collision errors...
+}
+```
+
+
+All errors — including connection failures, upsert failures, and data corruption — are silently discarded. You'll have no visibility into market stream failures.
+
+
+**Fix:**
+```javascript
+} catch (err) {
+    console.error('Failed to update stock price:', { symbol, currentPrice, error: err.message });
+}
+```
+
+
+---
+
+
+### 14. Missing Graceful Shutdown
+**File:** `bot.js`
+
+
+The process has no signal handlers. When the container/scheduler sends SIGTERM:
+- WebSocket connection drops without clean disconnect
+- In-flight orders may be orphaned
+- `setInterval` keeps running
+
+
+**Fix:**
+```javascript
+async function shutdown(signal) {
+    console.log(`\n${signal} received. Shutting down gracefully...`);
+    clearInterval(tickInterval);
+    if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+    await mongoose.connection.close();
+    process.exit(0);
+}
+
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+```
+
+
+---
+
+
+### 15. Missing Input Validation on Order Route
+**File:** `routes/orders.js:11`
+
+
+```javascript
+const { stockId, quantity, orderType, price, stopLoss, target, side } = req.body;
+```
+
+
+No validation that these fields exist, have correct types, or are within acceptable ranges. A malformed request can crash downstream code or cause unexpected behavior.
+
+
+**Fix — add validation:**
+```javascript
+router.post('/', authMiddleware, async (req, res) => {
+    const { stockId, quantity, orderType, side } = req.body;
+    
+    if (!Number.isInteger(stockId) || stockId <= 0) {
+        return res.status(400).json({ error: "Invalid stockId" });
+    }
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+        return res.status(400).json({ error: "Invalid quantity" });
+    }
+    if (!['MARKET', 'LIMIT'].includes(orderType)) {
+        return res.status(400).json({ error: "Invalid orderType" });
+    }
+    if (!['BUY', 'SELL'].includes(side)) {
+        return res.status(400).json({ error: "Invalid side" });
+    }
+    // ... rest of handler
+});
+```
+
+
+---
+
+
+### 16. Margin Call Threshold Logic
+**File:** `modules/tradeEngine.js:125`
+
+
+```javascript
+if (hasExposure && totalUnrealizedLoss >= user.loss_limit) {
+```
+
+
+Using `>=` triggers a margin call when the loss equals the limit. A user at exactly their limit hasn't breached it — they should only be liquidated when the loss exceeds the limit.
+
+
+**Fix:** Change to `>`.
+
+
+---
+
+
+### 17. WebSocket Reconnection Without Backoff
+**File:** `modules/marketStream.js:65`
+
+
+```javascript
+setTimeout(startLiveStream, 5000);
+```
+
+
+A flat 5-second retry with no backoff will hammer the Alpaca API if there's an outage. If the service is restarted repeatedly, this causes a thundering herd on reconnect.
+
+
+**Fix — add exponential backoff:**
+```javascript
+let reconnectDelay = 5000;
+const MAX_DELAY = 300000; // 5 minutes
+
+
+ws.on('close', () => {
+    console.log(`⚠️ Alpaca stream closed. Reconnecting in ${reconnectDelay}ms...`);
+    setTimeout(() => {
+        reconnectDelay = Math.min(reconnectDelay * 2, MAX_DELAY);
+        startLiveStream();
+    }, reconnectDelay);
+});
+```
+
+
+---
+
+
+## Suggestions 🟢
+
+
+### 18. Use `lean()` on Read-Only Queries
+Queries in the tick loop (`tradeEngine.js:39, 42`) hydrate full Mongoose documents. Since these are read-only and not modified, `lean()` eliminates hydration overhead and significantly improves throughput.
+
+
+**Fix:**
+```javascript
+const orders = await Order.find({ status: 'OPEN' }).lean();
+const stocksData = await Stock.find({}).lean();
+```
+
+
+---
+
+
+### 19. Add Request Timeout Middleware
+Add a timeout to prevent hanging requests from consuming server resources indefinitely.
+
+
+**Fix:**
+```javascript
+const { timeout } = require('connect-timeout');
+app.use(timeout('15s'));
+app.use(haltOnTimedout);
+function haltOnTimedout(req, res, next) {
+    if (!req.timedout) next();
+}
+```
+
+
+---
+
+
+### 20. Extract Magic Strings to Constants
+Create a `constants.js` file:
+```javascript
+module.exports = {
+    ORDER_STATUS: { OPEN: 'OPEN', EXECUTED: 'EXECUTED', CANCELLED: 'CANCELLED', CANCELLED_BY_MARGIN_CALL: 'CANCELLED_BY_MARGIN_CALL' },
+    ORDER_SIDE: { BUY: 'BUY', SELL: 'SELL' },
+    ORDER_TYPE: { MARKET: 'MARKET', LIMIT: 'LIMIT' },
+};
+```
+
+
+---
+
+
+### 21. N+1 Query in Risk Management Loop
+**File:** `modules/tradeEngine.js:85-97`
+
+
+The risk management loop fetches all users, then in `checkUserRisk` makes a separate `Portfolio.findOne()` call per user. With 1000 users, that's 1001 queries. Use aggregation or batch fetch.
+
+
+**Fix:**
+```javascript
+async function processRiskManagement() {
+    const users = await User.find({});
+    if (users.length === 0) return;
+
+
+    const userIds = users.map(u => u.user_id);
+    const portfolios = await Portfolio.find({ user_id: { $in: userIds } }).lean();
+    const portfolioMap = Object.fromEntries(portfolios.map(p => [p.user_id, p]));
+    
+    const stocksData = await Stock.find({}).lean();
+    const stocks = Object.fromEntries(stocksData.map(s => [s.stock_id, s]));
+
+
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+        const batch = users.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(user => checkUserRisk(user, stocks, portfolioMap[user.user_id])));
+    }
+}
+
+
+async function checkUserRisk(user, stocks, portfolio) {
+    // Use passed portfolio instead of querying
+}
+```
+
+
+---
+
+
+## DB & Data Modelling Issues 🗄️
+
+
+### 22. Missing Index on Trade.order_id
+`execution.js:11` uses `Order.findOneAndUpdate({ order_id })` but `Trade.trade_id` and `Trade.order_id` are queried without indexes. Add:
+
+
+```javascript
+tradeSchema.index({ order_id: 1 });
+tradeSchema.index({ user_id: 1, timestamp: -1 });
+```
+
+
+---
+
+
+### 23. User.email Not Indexed
+`auth.js:5` queries `User.findOne({ email })`. This is a unique field in the schema but not indexed. Mongoose doesn't auto-create indexes on unique schema options without `autoIndex`.
+
+
+```javascript
+userSchema.index({ email: 1 }, { unique: true });
+```
+
+
+---
+
+
+### 24. Consider TTL Index on WalletTransaction
+If this is a high-volume ledger, old transactions should be purged. Add a TTL index:
+
+
+```javascript
+walletTransactionSchema.index({ timestamp: 1 }, { expireAfterSeconds: 31536000 }); // 1 year
+```
+
+
+---
+
+
+### 25. Unbounded positions[] Array
+`Portfolio.positions` is an embedded array. At high trading frequency, this array could grow large. Consider:
+- If positions rarely exceed 20 stocks → embedding is fine
+- If users hold hundreds of stocks → move positions to a separate collection
+
+
+Current implementation appears safe for typical retail trading use cases.
+
+
+---
+
+
+## What's Done Well ✅
+
+
+1. **Compound indexes on Order** (`models/Order.js:19-20`): `{ status: 1, user_id: 1 }` and `{ status: 1, stock_id: 1 }` are exactly the right indexes for the tick loop queries. Good application of the ESR rule.
+
+
+2. **Tick mutex concept** (`modules/tradeEngine.js:8-9`): The intent to prevent overlapping ticks is correct. The implementation just needs to be made atomic.
+
+
+3. **Batching in risk management** (`modules/tradeEngine.js:93-97`): Processing users in batches of 50 shows awareness of MongoDB connection pool limits.
+
+
+4. **Global rate limiting**: Express-rate-limit on the app is a good baseline protection.
+
+
+5. **Environment variable usage**: `.env.example` pattern is present. The hardcoded URI in `db.js` is the only violation.
+
+
+6. **Portfolio embedding**: Using a single document per user with embedded positions[] is the right choice for a portfolio model — avoids $lookup overhead and enables atomic updates.
+
+
+7. **Bracket order generation** (`modules/execution.js:56-72`): Creating stop-loss/target child orders as separate OPEN orders keeps the engine simple and uniform.
+
+
+---
+
+
+## Priority Fix Recommendations
+
+
+**Must fix before production deployment (Critical):**
+1. Move MongoDB URI to env var
+2. Implement password hashing with bcrypt
+3. Fix JWT secret (throw if missing)
+4. Add body size limit
+5. Fix the double execution bug
+6. Wrap trade execution in a transaction
+7. Fix the random stock_id collision
+8. Add index on Stock.symbol
+
+
+**Should fix before scale (Important):**
+9. Add index on WalletTransaction.user_id
+10. Prune zero-quantity portfolio positions
+11. Add login-specific rate limiter
+12. Add graceful shutdown handler
+13. Fix margin call threshold (`>` not `>=`)
+14. Add WebSocket exponential backoff
+
+
+**Nice to have:**
+15. Add `lean()` to read-only queries
+16. Batch-fetch portfolios in risk management
+17. Add unit tests
+18. Add request timeout middleware
+
+
+---
