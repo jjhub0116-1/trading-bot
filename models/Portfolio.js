@@ -14,7 +14,4 @@ const portfolioSchema = new mongoose.Schema({
     profit_loss: { type: Number, default: 0 }  // Total aggregate realized P&L across ALL stocks
 }, { timestamps: true });
 
-// One document per user only
-portfolioSchema.index({ user_id: 1 }, { unique: true });
-
 module.exports = mongoose.model('Portfolio', portfolioSchema);
