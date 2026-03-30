@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const connectDB = require("./config/db");
 const { processAllOpenOrders, processRiskManagement } = require("./modules/tradeEngine");
@@ -27,6 +28,7 @@ const limiter = rateLimit({
 });
 
 app.use(express.json({ limit: '10kb' })); // Prevent multi-GB payload DoS
+app.use(cors()); // Allow cross-origin requests from frontend
 app.use(limiter);
 
 // Serve the stunning local frontend web UI natively bypassing CORS explicitly
