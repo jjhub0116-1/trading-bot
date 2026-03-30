@@ -55,6 +55,44 @@ api.interceptors.response.use(
 
 ## 2. Authentication Routes
 
+### POST `/api/auth/register`
+**Auth required:** ❌ No  
+**Purpose:** Create a new user account. It automatically logs the user in and returns a JWT token.
+
+**Request Body:**
+```json
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "password": "securepassword123"
+}
+```
+
+**Success Response `200`:**
+```json
+{
+  "success": true,
+  "message": "Registration Successful",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 105,
+    "name": "Jane Doe",
+    "email": "jane@example.com"
+  }
+}
+```
+
+**Frontend Usage:**
+```js
+async function register(name, email, password) {
+  const res = await axios.post('/api/auth/register', { name, email, password });
+  localStorage.setItem('token', res.data.token);
+  localStorage.setItem('user', JSON.stringify(res.data.user));
+}
+```
+
+---
+
 ### POST `/api/auth/login`
 **Auth required:** ❌ No  
 **Purpose:** Log in a user and receive a JWT token.
@@ -97,8 +135,6 @@ async function login(email, password) {
   localStorage.setItem('user', JSON.stringify(res.data.user));
 }
 ```
-
-> **Note:** There is no `/api/auth/register` route yet. Users are created directly in the database by an admin. The frontend only needs the login flow.
 
 ---
 
@@ -451,6 +487,7 @@ If a user's **total unrealized loss ≥ their `loss_limit`:**
 
 | Method | Route | Auth | Purpose |
 |---|---|---|---|
+| `POST` | `/api/auth/register` | ❌ | Create new account, get JWT token |
 | `POST` | `/api/auth/login` | ❌ | Login, get JWT token |
 | `GET` | `/api/stocks` | ❌ | Live stock prices |
 | `POST` | `/api/orders` | ✅ | Place BUY or SELL order |
