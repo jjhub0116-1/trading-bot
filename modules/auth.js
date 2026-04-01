@@ -15,7 +15,6 @@ async function authenticate(email, password) {
     return null;
   }
 }
-}
 
 async function registerAccount(name, email, password) {
   try {
