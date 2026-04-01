@@ -47,4 +47,37 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 });
 
+// POST /api/auth/register (For Admins/Customers via Postman)
+router.post('/register', loginLimiter, async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
+        }
+
+        const userOrError = await registerAccount(name, email, password);
+
+        if (typeof userOrError === 'string') {
+            return res.status(400).json({ success: false, message: userOrError });
+        }
+
+        // Auto-login after registration
+        const token = jwt.sign(
+            { id: userOrError.user_id, email: userOrError.email, name: userOrError.user_name },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.json({
+            success: true,
+            message: 'Registration Successful',
+            token,
+            user: { id: userOrError.user_id, name: userOrError.user_name, email: userOrError.email }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 module.exports = router;
