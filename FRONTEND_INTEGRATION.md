@@ -285,6 +285,43 @@ const orders = await api.get('/api/orders');
 
 ---
 
+### PUT `/api/orders/:id/cancel` — Cancel an Open Order
+**Auth required:** ✅ Yes (Bearer token)  
+**Purpose:** Cancel a limit or bracket order that is currently `OPEN`.
+
+**Success Response `200`:**
+```json
+{
+  "success": true,
+  "message": "Order cancelled successfully"
+}
+```
+
+### PUT `/api/orders/:id/modify` — Modify an Open Order
+**Auth required:** ✅ Yes (Bearer token)  
+**Purpose:** Update the variables (`price`, `stopLoss`, or `target`) of a currently `OPEN` order.
+
+**Request Body:**
+```json
+{
+  "price": 140,
+  "stopLoss": 120,
+  "target": 180
+}
+```
+*(All fields in the body are optional; only send what you wish to modify).*
+
+**Success Response `200`:**
+```json
+{
+  "success": true,
+  "message": "Order modified successfully",
+  "order": { /* updated order object */ }
+}
+```
+
+---
+
 ## 5. Portfolio Route
 
 ### GET `/api/portfolio` — Get Current Holdings
@@ -302,17 +339,24 @@ const orders = await api.get('/api/orders');
       "stock_id": 101,
       "net_quantity": 200,
       "average_price": 150.00,
-      "realized_pnl": 0
+      "realized_pnl": 0,
+      "current_price": 155.00,
+      "unrealized_pnl": 1000.00,
+      "overall_pnl": 1000.00
     },
     {
       "stock_id": 109,
       "net_quantity": 400,
       "average_price": 100.00,
-      "realized_pnl": -250.00
+      "realized_pnl": -250.00,
+      "current_price": 95.00,
+      "unrealized_pnl": -2000.00,
+      "overall_pnl": -2250.00
     }
   ],
-  "profit_loss": -250.00,
-  "updatedAt": "2026-03-29T11:00:00.000Z"
+  "realized_pnl": -250.00,
+  "unrealized_pnl": -1000.00,
+  "overall_pnl": -1250.00
 }
 ```
 
@@ -320,7 +364,9 @@ const orders = await api.get('/api/orders');
 ```json
 {
   "positions": [],
-  "profit_loss": 0
+  "realized_pnl": 0,
+  "unrealized_pnl": 0,
+  "overall_pnl": 0
 }
 ```
 
@@ -333,24 +379,14 @@ const orders = await api.get('/api/orders');
 | `positions[].net_quantity` | Shares currently held (will be `0` after a full sell) |
 | `positions[].average_price` | Weighted average price they paid per share |
 | `positions[].realized_pnl` | Profit/Loss already locked in by selling this stock |
-| `profit_loss` | **Total realized P&L across ALL stocks combined** |
+| `positions[].current_price` | Live current value of the stock dynamically evaluated |
+| `positions[].unrealized_pnl` | Live floating PnL dynamically evaluated |
+| `positions[].overall_pnl` | Computed total PnL per stock (`realized` + `unrealized`) |
+| `realized_pnl` | **Total realized P&L across ALL stocks combined** |
+| `unrealized_pnl` | **Total live floating P&L across ALL stocks combined** |
+| `overall_pnl` | **Portfolio true standing (`realized` + `unrealized`)** |
 
-**How to compute Unrealized P&L on the frontend:**
-```js
-// You have the portfolio + the current stock prices from /api/stocks
-
-function getUnrealizedPnL(position, currentPrice) {
-  return (currentPrice - position.average_price) * position.net_quantity;
-}
-
-// Total unrealized across all positions
-function getTotalUnrealizedPnL(portfolio, stockPriceMap) {
-  return portfolio.positions.reduce((total, pos) => {
-    const currentPrice = stockPriceMap[pos.stock_id]; 
-    return total + getUnrealizedPnL(pos, currentPrice);
-  }, 0);
-}
-```
+> 💡 **Tip:** The `GET /api/portfolio` response payload computes all unrealized math and fetching of current live prices entirely on the backend server side! Simply map these values directly into your frontend cards.
 
 ---
 
@@ -469,17 +505,18 @@ User places a trade:
 
 The backend runs a background engine every **3 seconds** that:
 1. Checks all bracket orders (stop loss / target) → auto-executes if price hit
-2. Scans every user's unrealized loss across all positions
+2. Scans every user's combined Realized + Unrealized loss across all positions
 
-If a user's **total unrealized loss ≥ their `loss_limit`:**
+If a user's **effective total risk PnL falls below their `-loss_limit`:**
 - All their open orders are force-cancelled (`CANCELLED_BY_MARGIN_CALL`)
 - All their positions are force-sold at current market price
-- The user's portfolio drops to 0
+- The user is permanently flagged (`is_flagged = true`) restricting future orders.
+
+*Algorithm Rule:* Positive Realized Profit does NOT increase the loss limit budget. If a user has `$5000` realized profit, their loss cap remains restricted as if their realized base was `$0`.
 
 **The frontend should:**
 - Poll `/api/wallet` every few seconds and show the user's margin health
-- Poll `/api/portfolio` to detect when a margin call zeroed their positions
-- Show a prominent warning when `unrealized loss > 80% of loss_limit`
+- Warn the user heavily when `Math.min(0, portfolio.realized_pnl) + portfolio.unrealized_pnl` approaches the loss limit threshold.
 
 ---
 
@@ -492,6 +529,8 @@ If a user's **total unrealized loss ≥ their `loss_limit`:**
 | `GET` | `/api/stocks` | ❌ | Live stock prices |
 | `POST` | `/api/orders` | ✅ | Place BUY or SELL order |
 | `GET` | `/api/orders` | ✅ | User's full order history |
-| `GET` | `/api/portfolio` | ✅ | Current holdings + P&L |
+| `PUT` | `/api/orders/:id/modify` | ✅ | Modify an OPEN limits order |
+| `PUT` | `/api/orders/:id/cancel` | ✅ | Cancel an OPEN limit order |
+| `GET` | `/api/portfolio` | ✅ | Current holdings + Dynamic P&L payload |
 | `GET` | `/api/wallet` | ✅ | Equity limits + available buying power |
 | `GET` | `/api/wallet/transactions` | ✅ | Full financial transaction ledger |

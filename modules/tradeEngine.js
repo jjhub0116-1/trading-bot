@@ -55,8 +55,8 @@ async function processAllOpenOrders() {
           await executeTrade(order, stock.current_price);
         }
       }
-      // 2. Pure MARKET Orders (no bracket legs)
-      else if (order.order_type === ORDER_TYPE.MARKET && !order.stop_loss && !order.target) {
+      // 2. Immediate MARKET Orders (All Buys, and Pure Sells without brackets)
+      else if (order.order_type === ORDER_TYPE.MARKET && (order.side === ORDER_SIDE.BUY || (!order.stop_loss && !order.target))) {
         await executeTrade(order, stock.current_price);
       }
       // 3. Bracket SELL legs
