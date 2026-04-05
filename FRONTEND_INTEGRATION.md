@@ -442,6 +442,7 @@ const marginRiskPercent = (currentUnrealizedLoss / wallet.loss_limit) * 100;
     "user_name": "Arjun",
     "amount": 30000.00,
     "stock_id": 101,
+    "quantity": 200,
     "side": "BUY",
     "timestamp": "2026-03-29T08:19:31.972Z"
   }
