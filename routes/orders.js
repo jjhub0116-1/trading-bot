@@ -3,7 +3,7 @@ const router = express.Router();
 const { placeOrder } = require('../modules/order');
 const Order = require('../models/Order');
 const authMiddleware = require('../middleware/authMiddleware');
-const { ORDER_TYPE, ORDER_SIDE } = require('../config/constants');
+const { ORDER_TYPE, ORDER_SIDE, ORDER_STATUS } = require('../config/constants');
 
 // POST /api/orders — Place a BUY or SELL order
 router.post('/', authMiddleware, async (req, res) => {
@@ -52,8 +52,8 @@ router.get('/', authMiddleware, async (req, res) => {
 // PUT /api/orders/:id/cancel — Cancel an open order
 router.put('/:id/cancel', authMiddleware, async (req, res) => {
     try {
-        const orderId = req.params.id;
-        const order = await Order.findOne({ order_id: orderId, user_id: req.user.id });
+        const mongoId = req.params.id;
+        const order = await Order.findOne({ _id: mongoId, user_id: req.user.id });
         
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
         if (order.status !== ORDER_STATUS.OPEN) return res.status(400).json({ success: false, message: 'Only OPEN orders can be cancelled' });
@@ -70,10 +70,10 @@ router.put('/:id/cancel', authMiddleware, async (req, res) => {
 // PUT /api/orders/:id/modify — Modify limit price, stopLoss, or target
 router.put('/:id/modify', authMiddleware, async (req, res) => {
     try {
-        const orderId = req.params.id;
+        const mongoId = req.params.id;
         const { price, stopLoss, target } = req.body;
         
-        const order = await Order.findOne({ order_id: orderId, user_id: req.user.id });
+        const order = await Order.findOne({ _id: mongoId, user_id: req.user.id });
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
         if (order.status !== ORDER_STATUS.OPEN) return res.status(400).json({ success: false, message: 'Only OPEN orders can be modified' });
         
