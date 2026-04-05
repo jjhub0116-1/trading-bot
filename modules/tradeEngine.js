@@ -111,26 +111,55 @@ async function checkUserRisk(user, stocks, portfolio) {
 
     let totalUnrealizedPnl = 0;
     let hasExposure = false;
+    let needsUpdate = false;
 
     if (portfolio.positions && portfolio.positions.length > 0) {
       for (const pos of portfolio.positions) {
-        if (pos.net_quantity <= 0) continue;
+        if (pos.net_quantity <= 0) {
+          pos.unrealized_pnl = 0;
+          pos.overall_pnl = pos.realized_pnl;
+          continue;
+        }
         hasExposure = true;
 
         const stock = stocks[pos.stock_id];
         if (stock && stock.current_price) {
-          totalUnrealizedPnl += (stock.current_price - pos.average_price) * pos.net_quantity;
+          const currentUnrealized = (stock.current_price - pos.average_price) * pos.net_quantity;
+          const currentOverall = pos.realized_pnl + currentUnrealized;
+          
+          if (pos.unrealized_pnl !== currentUnrealized || pos.overall_pnl !== currentOverall) {
+              pos.unrealized_pnl = currentUnrealized;
+              pos.overall_pnl = currentOverall;
+              needsUpdate = true;
+          }
+          
+          totalUnrealizedPnl += currentUnrealized;
         }
       }
     }
 
+    const totalOverall = (portfolio.profit_loss || 0) + totalUnrealizedPnl;
+    
+    // Always persist mathematical PnL updates native to the DB Document
+    if (needsUpdate || portfolio.unrealized_pnl !== totalUnrealizedPnl || portfolio.overall_pnl !== totalOverall) {
+        const PortfolioModel = require('../models/Portfolio');
+        await PortfolioModel.updateOne(
+            { user_id: user.user_id },
+            { 
+               $set: { 
+                 positions: portfolio.positions, 
+                 unrealized_pnl: totalUnrealizedPnl, 
+                 overall_pnl: totalOverall 
+               } 
+            }
+        );
+    }
+
     // Clamp realized P&L so positive profit does not expand the available loss loss_limit.
-    // If they have realized losses, it eats into the limit. If they have realized profit, it's ignored for risk.
     const cappedRealizedPnl = Math.min(0, portfolio.profit_loss || 0);
     const effectiveRiskPnl = cappedRealizedPnl + totalUnrealizedPnl;
     
-    // Check if effective losses exceed the loss_limit (e.g. effectiveRiskPnl < -500 for a 500 limit)
-    // Always margin call if total loss exceeds limit, regardless of exposure, to lock the account.
+    // Check if effective losses exceed the loss_limit
     if (effectiveRiskPnl < -user.loss_limit) {
       console.log(`\n🚨 MARGIN CALL [USER ${user.user_id}]: Risk PnL $${effectiveRiskPnl.toFixed(2)} is worse than Limit -$${user.loss_limit}. Flagging account and liquidating!`);
 
