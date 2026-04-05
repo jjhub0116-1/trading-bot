@@ -13,6 +13,7 @@ const orderSchema = new mongoose.Schema({
     stop_loss: { type: Number },
     target: { type: Number },
     executedAt: { type: Date },
+    execution_price: { type: Number },
     status: {
         type: String,
         enum: Object.values(ORDER_STATUS),

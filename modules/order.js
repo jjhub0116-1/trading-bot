@@ -15,7 +15,7 @@ async function placeOrder(userId, stockId, quantity, orderType, price, stopLoss,
     if (!user) return 'User Not Found';
     if (user.is_flagged) return 'Account Blocked: Loss limit reached';
 
-    const executionPrice = orderType === ORDER_TYPE.MARKET ? parseFloat(stock.price) : parseFloat(price);
+    const executionPrice = orderType === ORDER_TYPE.MARKET ? parseFloat(stock.current_price) : parseFloat(price);
 
     // BUY: check share-count equity limit
     if (side === ORDER_SIDE.BUY) {
