@@ -1,4 +1,4 @@
-const Order = require('../models/Order');
+const User = require('../models/User');
 const { getStock } = require('./stocks');
 const { checkEquityAvailable, getUserName } = require('./wallet');
 const { ORDER_STATUS, ORDER_SIDE, ORDER_TYPE } = require('../config/constants');
@@ -9,6 +9,10 @@ async function placeOrder(userId, stockId, quantity, orderType, price, stopLoss,
 
     const stock = await getStock(stockId);
     if (!stock) return 'Stock Not Found';
+
+    const user = await User.findOne({ user_id: userId });
+    if (!user) return 'User Not Found';
+    if (user.is_flagged) return 'Account Blocked: Loss limit reached';
 
     const executionPrice = orderType === ORDER_TYPE.MARKET ? parseFloat(stock.price) : parseFloat(price);
 

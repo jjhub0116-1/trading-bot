@@ -1,0 +1,22 @@
+﻿≡ƒÜÇ Initializing Google Sheets...
+Γ£à Google Sheets connection initialized
+
+1∩╕ÅΓâú Testing Signup for testuser_1774461168015@example.com
+***************************************
+Signup Result: { success: true, message: 'User Created' }
+
+2∩╕ÅΓâú Testing Login...
+Login Successful! Token: eyJhbGciOiJIUzI1NiIs...
+
+Fetching created user ID...
+User ID: USR_1774461168067, Initial Wallet: 5550
+
+3∩╕ÅΓâú Testing Order Placement (BUY MARKET)...
+1825
+***************************************
+Order Placement Result: ORD_1774461170686
+
+4∩╕ÅΓâú Verifying Wallet Balance...
+Final Wallet Balance: 5550
+
+Γ£à All tests completed!

@@ -15,7 +15,7 @@ async function executeTrade(order, executionPrice) {
     // 1. Mark Order EXECUTED — idempotent check prevents double execution
     const updatedOrder = await Order.findOneAndUpdate(
       { order_id: order.order_id, status: ORDER_STATUS.OPEN },
-      { status: ORDER_STATUS.EXECUTED },
+      { status: ORDER_STATUS.EXECUTED, executedAt: new Date() },
       { session }
     );
     if (!updatedOrder) {

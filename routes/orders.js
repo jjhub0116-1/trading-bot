@@ -49,5 +49,43 @@ router.get('/', authMiddleware, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+// PUT /api/orders/:id/cancel — Cancel an open order
+router.put('/:id/cancel', authMiddleware, async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const order = await Order.findOne({ order_id: orderId, user_id: req.user.id });
+        
+        if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+        if (order.status !== ORDER_STATUS.OPEN) return res.status(400).json({ success: false, message: 'Only OPEN orders can be cancelled' });
+        
+        order.status = 'CANCELLED';
+        await order.save();
+        
+        res.json({ success: true, message: 'Order cancelled successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// PUT /api/orders/:id/modify — Modify limit price, stopLoss, or target
+router.put('/:id/modify', authMiddleware, async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const { price, stopLoss, target } = req.body;
+        
+        const order = await Order.findOne({ order_id: orderId, user_id: req.user.id });
+        if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+        if (order.status !== ORDER_STATUS.OPEN) return res.status(400).json({ success: false, message: 'Only OPEN orders can be modified' });
+        
+        if (order.order_type === ORDER_TYPE.LIMIT && price > 0) order.price = price;
+        if (stopLoss !== undefined) order.stop_loss = stopLoss; 
+        if (target !== undefined) order.target = target;
+        
+        await order.save();
+        res.json({ success: true, message: 'Order modified successfully', order });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 
 module.exports = router;

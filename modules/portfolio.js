@@ -38,8 +38,8 @@ async function updatePortfolio(userId, username, stockId, executedQuantity, exec
         portfolio.positions = portfolio.positions.filter(p => p.stock_id !== stockId);
       }
 
-      // Aggregate realized P&L across all positions
-      portfolio.profit_loss = portfolio.positions.reduce((sum, p) => sum + p.realized_pnl, 0);
+      // Accumulate realized P&L across the portfolio permanently
+      portfolio.profit_loss += realizedPnl;
     }
 
     portfolio.markModified('positions');

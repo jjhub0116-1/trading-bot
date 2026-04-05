@@ -12,6 +12,7 @@ const orderSchema = new mongoose.Schema({
     price: { type: Number },
     stop_loss: { type: Number },
     target: { type: Number },
+    executedAt: { type: Date },
     status: {
         type: String,
         enum: Object.values(ORDER_STATUS),

@@ -20,9 +20,9 @@ async function processOrder(orderId) {
     if (order.order_type === ORDER_TYPE.MARKET) {
       await executeTrade(order, stock.current_price);
     } else if (order.order_type === ORDER_TYPE.LIMIT && order.side === ORDER_SIDE.BUY && stock.current_price <= order.price) {
-      await executeTrade(order, order.price);
+      await executeTrade(order, stock.current_price);
     } else if (order.order_type === ORDER_TYPE.LIMIT && order.side === ORDER_SIDE.SELL && stock.current_price >= order.price) {
-      await executeTrade(order, order.price);
+      await executeTrade(order, stock.current_price);
     }
   } catch (err) {
     console.error('Process Single Order Error:', err);
@@ -50,9 +50,9 @@ async function processAllOpenOrders() {
       // 1. LIMIT Orders
       if (order.order_type === ORDER_TYPE.LIMIT) {
         if (order.side === ORDER_SIDE.BUY && stock.current_price <= order.price) {
-          await executeTrade(order, order.price);
+          await executeTrade(order, stock.current_price);
         } else if (order.side === ORDER_SIDE.SELL && stock.current_price >= order.price) {
-          await executeTrade(order, order.price);
+          await executeTrade(order, stock.current_price);
         }
       }
       // 2. Pure MARKET Orders (no bracket legs)
@@ -106,24 +106,32 @@ async function processRiskManagement() {
 
 async function checkUserRisk(user, stocks, portfolio) {
   try {
-    if (!portfolio || portfolio.positions.length === 0) return;
+    if (!portfolio) return;
+    if (user.is_flagged) return; // Already flagged, no need to margin call repeatedly
 
-    let totalUnrealizedLoss = 0;
+    let totalUnrealizedPnl = 0;
     let hasExposure = false;
 
-    for (const pos of portfolio.positions) {
-      if (pos.net_quantity <= 0) continue;
-      hasExposure = true;
+    if (portfolio.positions && portfolio.positions.length > 0) {
+      for (const pos of portfolio.positions) {
+        if (pos.net_quantity <= 0) continue;
+        hasExposure = true;
 
-      const stock = stocks[pos.stock_id];
-      if (stock && stock.current_price) {
-        totalUnrealizedLoss += (pos.average_price - stock.current_price) * pos.net_quantity;
+        const stock = stocks[pos.stock_id];
+        if (stock && stock.current_price) {
+          totalUnrealizedPnl += (stock.current_price - pos.average_price) * pos.net_quantity;
+        }
       }
     }
 
-    // Use strictly > (not >=): user at exactly their limit hasn't breached it
-    if (hasExposure && totalUnrealizedLoss > user.loss_limit) {
-      console.log(`\n🚨 MARGIN CALL [USER ${user.user_id}]: Loss $${totalUnrealizedLoss.toFixed(2)} > Limit $${user.loss_limit}. Liquidating all positions!`);
+    const overallPnl = (portfolio.profit_loss || 0) + totalUnrealizedPnl;
+    
+    // Check if overall losses exceed the loss_limit (e.g. overallPnl < -500 for a 500 limit)
+    // Always margin call if total loss exceeds limit, regardless of exposure, to lock the account.
+    if (overallPnl < -user.loss_limit) {
+      console.log(`\n🚨 MARGIN CALL [USER ${user.user_id}]: Total PnL $${overallPnl.toFixed(2)} is worse than Limit -$${user.loss_limit}. Flagging account and liquidating!`);
+
+      await User.updateOne({ user_id: user.user_id }, { is_flagged: true });
 
       const OrderModel = require('../models/Order');
       await OrderModel.updateMany(
@@ -132,10 +140,12 @@ async function checkUserRisk(user, stocks, portfolio) {
       );
 
       const { placeOrder } = require('./order');
-      for (const pos of portfolio.positions) {
-        if (pos.net_quantity > 0) {
-          console.log(`🗡️ Liquidating ${pos.net_quantity} shares of Stock ${pos.stock_id}...`);
-          await placeOrder(user.user_id, pos.stock_id, pos.net_quantity, ORDER_TYPE.MARKET, 0, null, null, ORDER_SIDE.SELL);
+      if (portfolio.positions) {
+        for (const pos of portfolio.positions) {
+          if (pos.net_quantity > 0) {
+            console.log(`🗡️ Liquidating ${pos.net_quantity} shares of Stock ${pos.stock_id}...`);
+            await placeOrder(user.user_id, pos.stock_id, pos.net_quantity, ORDER_TYPE.MARKET, 0, null, null, ORDER_SIDE.SELL);
+          }
         }
       }
     }
@@ -143,5 +153,6 @@ async function checkUserRisk(user, stocks, portfolio) {
     console.error(`Risk check failed for user ${user.user_id}:`, err);
   }
 }
+
 
 module.exports = { processOrder, processAllOpenOrders, processRiskManagement };

@@ -1,17 +1,45 @@
 const express = require('express');
 const router = express.Router();
 const Portfolio = require('../models/Portfolio');
+const Stock = require('../models/Stock');
 const authMiddleware = require('../middleware/authMiddleware');
 
-// GET /api/portfolio — Returns the single portfolio document for the authenticated user
+// GET /api/portfolio — Returns portfolio with dynamically calculated unrealized P&L
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const portfolio = await Portfolio.findOne({ user_id: req.user.id });
-        if (!portfolio) return res.json({ positions: [], profit_loss: 0 });
-        res.json(portfolio);
+        if (!portfolio) return res.json({ positions: [], realized_pnl: 0, unrealized_pnl: 0, overall_pnl: 0 });
+
+        const stocksData = await Stock.find({}).lean();
+        const stockMap = {};
+        stocksData.forEach(s => stockMap[s.stock_id] = s.current_price);
+
+        let totalUnrealizedPnl = 0;
+        const positions = portfolio.positions.map(p => {
+            const currentPrice = stockMap[p.stock_id] || p.average_price;
+            const posUnrealizedPnl = (currentPrice - p.average_price) * p.net_quantity;
+            totalUnrealizedPnl += posUnrealizedPnl;
+            return {
+                ...p.toObject(),
+                current_price: currentPrice,
+                unrealized_pnl: posUnrealizedPnl
+            };
+        });
+
+        const overallPnl = portfolio.profit_loss + totalUnrealizedPnl;
+
+        res.json({
+            user_id: portfolio.user_id,
+            user_name: portfolio.user_name,
+            positions,
+            realized_pnl: portfolio.profit_loss,
+            unrealized_pnl: totalUnrealizedPnl,
+            overall_pnl: overallPnl
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 module.exports = router;
