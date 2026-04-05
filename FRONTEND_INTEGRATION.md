@@ -251,7 +251,7 @@ async function placeBuyOrder(stockId, quantity, stopLoss = null, target = null) 
 ```json
 [
   {
-    "_id": "...",
+    "_id": "64abc123def456",
     "order_id": "ORD_1774772304396",
     "user_id": 10,
     "user_name": "Arjun",
@@ -260,9 +260,11 @@ async function placeBuyOrder(stockId, quantity, stopLoss = null, target = null) 
     "order_type": "MARKET",
     "quantity": 200,
     "price": 150,
-    "stop_loss": null,
-    "target": null,
+    "stop_loss": 130,
+    "target": 200,
     "status": "EXECUTED",
+    "execution_price": 148.50,
+    "executedAt": "2026-03-29T08:19:35.000Z",
     "createdAt": "2026-03-29T08:19:31.972Z"
   }
 ]
@@ -272,22 +274,32 @@ async function placeBuyOrder(stockId, quantity, stopLoss = null, target = null) 
 
 | Status | Meaning |
 |---|---|
-| `OPEN` | Waiting to be executed (LIMIT orders, bracket SELL orders) |
-| `EXECUTED` | Order filled successfully |
-| `CANCELLED` | Manually cancelled |
-| `CANCELLED_BY_MARGIN_CALL` | Cancelled automatically when a margin call liquidated the account |
+| `OPEN` | Pending — waiting for price condition (LIMIT/bracket) or engine tick |
+| `EXECUTED` | Successfully filled — check `execution_price` for the actual fill price |
+| `CANCELLED` | Manually cancelled by the user |
+| `CANCELLED_BY_MARGIN_CALL` | Auto-cancelled when margin call liquidated the account |
+
+**Key fields on executed orders:**
+
+| Field | Description |
+|---|---|
+| `execution_price` | Actual price the order was filled at (may differ from `price` for limit orders) |
+| `executedAt` | Exact timestamp when the order was executed |
 
 **Frontend Usage:**
 ```js
 const orders = await api.get('/api/orders');
 // orders.data is sorted newest first
+// Use _id to pass into cancel/modify endpoints
+const openOrders = orders.data.filter(o => o.status === 'OPEN');
 ```
 
 ---
 
 ### PUT `/api/orders/:id/cancel` — Cancel an Open Order
 **Auth required:** ✅ Yes (Bearer token)  
-**Purpose:** Cancel a limit or bracket order that is currently `OPEN`.
+**URL param:** `:id` is the MongoDB `_id` of the order (get it from `GET /api/orders`)
+**Purpose:** Cancel a limit or bracket order that is currently `OPEN`. Does NOT delete it — sets status to `CANCELLED`.
 
 **Success Response `200`:**
 ```json
@@ -297,11 +309,30 @@ const orders = await api.get('/api/orders');
 }
 ```
 
+**Error Responses:**
+
+| Status | Message | Meaning |
+|---|---|---|
+| `400` | `"Only OPEN orders can be cancelled"` | Order is already EXECUTED or already CANCELLED |
+| `404` | `"Order not found"` | Wrong `_id` or order belongs to another user |
+
+**Frontend Usage:**
+```js
+async function cancelOrder(orderId) {
+  // orderId is the MongoDB _id from GET /api/orders response
+  const res = await api.put(`/api/orders/${orderId}/cancel`);
+  return res.data; // { success: true, message }
+}
+```
+
+---
+
 ### PUT `/api/orders/:id/modify` — Modify an Open Order
 **Auth required:** ✅ Yes (Bearer token)  
-**Purpose:** Update the variables (`price`, `stopLoss`, or `target`) of a currently `OPEN` order.
+**URL param:** `:id` is the MongoDB `_id` of the order  
+**Purpose:** Update the limit price, stop-loss, or target on a currently `OPEN` order.
 
-**Request Body:**
+**Request Body** *(send only what you want to change — all fields optional):*
 ```json
 {
   "price": 140,
@@ -309,15 +340,52 @@ const orders = await api.get('/api/orders');
   "target": 180
 }
 ```
-*(All fields in the body are optional; only send what you wish to modify).*
+
+**Rules:**
+- `price` — only applies to `LIMIT` orders. Ignored on `MARKET` orders.
+- `stopLoss` / `target` — applies to all order types, including bracket SELL orders.
 
 **Success Response `200`:**
 ```json
 {
   "success": true,
   "message": "Order modified successfully",
-  "order": { /* updated order object */ }
+  "order": {
+    "_id": "...",
+    "order_id": "ORD_1774772304396",
+    "stock_id": 101,
+    "side": "SELL",
+    "order_type": "LIMIT",
+    "quantity": 50,
+    "price": 140,
+    "stop_loss": 120,
+    "target": 180,
+    "status": "OPEN"
+  }
 }
+```
+
+**Error Responses:**
+
+| Status | Message | Meaning |
+|---|---|---|
+| `400` | `"Only OPEN orders can be modified"` | Can't modify already EXECUTED or CANCELLED |
+| `404` | `"Order not found"` | Wrong `_id` or belongs to a different user |
+
+**Frontend Usage:**
+```js
+async function modifyOrder(orderId, updates) {
+  // orderId = MongoDB _id from GET /api/orders
+  // updates = { price?, stopLoss?, target? } — only send what changed
+  const res = await api.put(`/api/orders/${orderId}/modify`, updates);
+  return res.data; // { success, message, order }
+}
+
+// Example: Update stop-loss on a running bracket trade
+await modifyOrder('64abc123...', { stopLoss: 135 });
+
+// Example: Adjust limit price of pending LIMIT BUY
+await modifyOrder('64abc456...', { price: 155, target: 200 });
 ```
 
 ---
@@ -529,15 +597,15 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 
 ## 10. Complete API Summary Table
 
-| Method | Route | Auth | Purpose |
-|---|---|---|---|
-| `POST` | `/api/auth/register` | ❌ | Create new account, get JWT token |
-| `POST` | `/api/auth/login` | ❌ | Login, get JWT token |
-| `GET` | `/api/stocks` | ❌ | Live stock prices |
-| `POST` | `/api/orders` | ✅ | Place BUY or SELL order |
-| `GET` | `/api/orders` | ✅ | User's full order history |
-| `PUT` | `/api/orders/:id/modify` | ✅ | Modify an OPEN limits order |
-| `PUT` | `/api/orders/:id/cancel` | ✅ | Cancel an OPEN limit order |
-| `GET` | `/api/portfolio` | ✅ | Current holdings + Dynamic P&L payload |
-| `GET` | `/api/wallet` | ✅ | Equity limits + available buying power |
-| `GET` | `/api/wallet/transactions` | ✅ | Full financial transaction ledger |
+| Method | Route | Auth | URL Param | Purpose |
+|---|---|---|---|---|
+| `POST` | `/api/auth/register` | ❌ | — | Create new account, get JWT token |
+| `POST` | `/api/auth/login` | ❌ | — | Login, get JWT token |
+| `GET` | `/api/stocks` | ❌ | — | Live stock prices |
+| `POST` | `/api/orders` | ✅ | — | Place BUY or SELL order |
+| `GET` | `/api/orders` | ✅ | — | User's full order history (sorted newest first) |
+| `PUT` | `/api/orders/:id/cancel` | ✅ | MongoDB `_id` | Cancel an OPEN order |
+| `PUT` | `/api/orders/:id/modify` | ✅ | MongoDB `_id` | Modify price/SL/target of an OPEN order |
+| `GET` | `/api/portfolio` | ✅ | — | Holdings + live realized/unrealized/overall P&L |
+| `GET` | `/api/wallet` | ✅ | — | Share equity limit + available buying power |
+| `GET` | `/api/wallet/transactions` | ✅ | — | Full trade transaction ledger with quantities |
