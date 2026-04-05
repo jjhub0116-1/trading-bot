@@ -484,12 +484,12 @@ User logs in
 Dashboard loads (3 parallel calls):
   ↓
 3a. GET /api/wallet    → show equity & risk meter
-3b. GET /api/portfolio → show holdings table
+3b. GET /api/portfolio → show holdings table with live P&L
 3c. GET /api/orders    → show order history table
   ↓
 Polling (every 3-5 seconds):
   ↓
-4. GET /api/stocks     → update prices, recalculate unrealized P&L
+4. GET /api/portfolio  → P&L is updated on server-side every tick, just read
 5. GET /api/wallet     → refresh available equity
 
 User places a trade:
@@ -497,6 +497,10 @@ User places a trade:
 6. POST /api/orders    → place order
 7. GET /api/portfolio  → refresh holdings
 8. GET /api/wallet     → refresh available equity
+
+User cancels/modifies a pending limit order:
+  ↓
+9. PUT /api/orders/:id/cancel  OR  PUT /api/orders/:id/modify
 ```
 
 ---
@@ -515,8 +519,10 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 *Algorithm Rule:* Positive Realized Profit does NOT increase the loss limit budget. If a user has `$5000` realized profit, their loss cap remains restricted as if their realized base was `$0`.
 
 **The frontend should:**
-- Poll `/api/wallet` every few seconds and show the user's margin health
-- Warn the user heavily when `Math.min(0, portfolio.realized_pnl) + portfolio.unrealized_pnl` approaches the loss limit threshold.
+- Poll `/api/portfolio` every few seconds to auto-detect when a margin call zeroed the user's positions
+- Show a **prominent red warning** when `Math.min(0, portfolio.realized_pnl) + portfolio.unrealized_pnl` approaches `-loss_limit`
+
+> ⚠️ **Flagged Account Behavior:** Once a user is flagged, the `POST /api/orders` endpoint returns `400: "Account locked due to Margin Call"` for ALL new order attempts until an admin resets the `is_flagged` field to `false` in the database.
 
 ---
 
