@@ -124,12 +124,15 @@ async function checkUserRisk(user, stocks, portfolio) {
       }
     }
 
-    const overallPnl = (portfolio.profit_loss || 0) + totalUnrealizedPnl;
+    // Clamp realized P&L so positive profit does not expand the available loss loss_limit.
+    // If they have realized losses, it eats into the limit. If they have realized profit, it's ignored for risk.
+    const cappedRealizedPnl = Math.min(0, portfolio.profit_loss || 0);
+    const effectiveRiskPnl = cappedRealizedPnl + totalUnrealizedPnl;
     
-    // Check if overall losses exceed the loss_limit (e.g. overallPnl < -500 for a 500 limit)
+    // Check if effective losses exceed the loss_limit (e.g. effectiveRiskPnl < -500 for a 500 limit)
     // Always margin call if total loss exceeds limit, regardless of exposure, to lock the account.
-    if (overallPnl < -user.loss_limit) {
-      console.log(`\n🚨 MARGIN CALL [USER ${user.user_id}]: Total PnL $${overallPnl.toFixed(2)} is worse than Limit -$${user.loss_limit}. Flagging account and liquidating!`);
+    if (effectiveRiskPnl < -user.loss_limit) {
+      console.log(`\n🚨 MARGIN CALL [USER ${user.user_id}]: Risk PnL $${effectiveRiskPnl.toFixed(2)} is worse than Limit -$${user.loss_limit}. Flagging account and liquidating!`);
 
       await User.updateOne({ user_id: user.user_id }, { is_flagged: true });
 
