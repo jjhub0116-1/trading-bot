@@ -24,7 +24,7 @@ async function checkEquityAvailable(userId, requiredQuantity) {
   }
 }
 
-async function logTransaction(userId, username, amount, stockId, side) {
+async function logTransaction(userId, username, amount, stockId, side, quantity) {
   try {
     const transactionId = "TXN_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
     await WalletTransaction.create({
@@ -33,6 +33,7 @@ async function logTransaction(userId, username, amount, stockId, side) {
       user_name: username,
       amount: amount,
       stock_id: stockId,
+      quantity: quantity,
       side: side
     });
   } catch (error) {

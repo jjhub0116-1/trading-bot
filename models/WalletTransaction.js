@@ -6,6 +6,7 @@ const walletTransactionSchema = new mongoose.Schema({
     user_name: { type: String, required: true },
     amount: { type: Number, required: true },
     stock_id: { type: Number, required: true },
+    quantity: { type: Number, required: true },
     side: { type: String, enum: ['BUY', 'SELL'], required: true },
     timestamp: { type: Date, default: Date.now }
 });

@@ -47,7 +47,7 @@ async function executeTrade(order, executionPrice) {
     await updatePortfolio(order.user_id, order.user_name, order.stock_id, order.quantity, executionPrice, order.side);
 
     // 5. Log wallet transaction
-    await logTransaction(order.user_id, order.user_name, totalCost, order.stock_id, order.side);
+    await logTransaction(order.user_id, order.user_name, totalCost, order.stock_id, order.side, order.quantity);
 
     console.log(`✅ Trade executed: ${order.order_id} | ${order.side} ${order.quantity} shares @ $${executionPrice}`);
 
