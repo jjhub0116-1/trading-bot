@@ -1,3 +1,4 @@
+const Order = require('../models/Order');
 const User = require('../models/User');
 const { getStock } = require('./stocks');
 const { checkEquityAvailable, getUserName } = require('./wallet');
