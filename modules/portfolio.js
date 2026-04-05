@@ -10,7 +10,7 @@ async function updatePortfolio(userId, username, stockId, executedQuantity, exec
         user_id: userId,
         user_name: username,
         positions: [],
-        profit_loss: 0
+        realized_pnl: 0
       });
     }
 
@@ -39,7 +39,7 @@ async function updatePortfolio(userId, username, stockId, executedQuantity, exec
       }
 
       // Accumulate realized P&L across the portfolio permanently
-      portfolio.profit_loss += realizedPnl;
+      portfolio.realized_pnl = (portfolio.realized_pnl || 0) + realizedPnl;
     }
 
     portfolio.markModified('positions');

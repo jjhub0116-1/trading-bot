@@ -138,7 +138,7 @@ async function checkUserRisk(user, stocks, portfolio) {
       }
     }
 
-    const totalOverall = (portfolio.profit_loss || 0) + totalUnrealizedPnl;
+    const totalOverall = (portfolio.realized_pnl || 0) + totalUnrealizedPnl;
     
     // Always persist mathematical PnL updates native to the DB Document
     if (needsUpdate || portfolio.unrealized_pnl !== totalUnrealizedPnl || portfolio.overall_pnl !== totalOverall) {
@@ -155,8 +155,8 @@ async function checkUserRisk(user, stocks, portfolio) {
         );
     }
 
-    // Clamp realized P&L so positive profit does not expand the available loss loss_limit.
-    const cappedRealizedPnl = Math.min(0, portfolio.profit_loss || 0);
+    // Clamp realized P&L so positive profit does not expand the available loss limit.
+    const cappedRealizedPnl = Math.min(0, portfolio.realized_pnl || 0);
     const effectiveRiskPnl = cappedRealizedPnl + totalUnrealizedPnl;
     
     // Check if effective losses exceed the loss_limit

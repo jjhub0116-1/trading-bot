@@ -29,13 +29,13 @@ router.get('/', authMiddleware, async (req, res) => {
             };
         });
 
-        const overallPnl = portfolio.profit_loss + totalUnrealizedPnl;
+        const overallPnl = (portfolio.realized_pnl || 0) + totalUnrealizedPnl;
 
         res.json({
             user_id: portfolio.user_id,
             user_name: portfolio.user_name,
             positions,
-            realized_pnl: portfolio.profit_loss,
+            realized_pnl: portfolio.realized_pnl,
             unrealized_pnl: totalUnrealizedPnl,
             overall_pnl: overallPnl
         });
