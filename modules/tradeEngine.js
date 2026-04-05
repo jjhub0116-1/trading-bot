@@ -161,22 +161,33 @@ async function checkUserRisk(user, stocks, portfolio) {
     
     // Check if effective losses exceed the loss_limit
     if (effectiveRiskPnl < -user.loss_limit) {
-      console.log(`\n🚨 MARGIN CALL [USER ${user.user_id}]: Risk PnL $${effectiveRiskPnl.toFixed(2)} is worse than Limit -$${user.loss_limit}. Flagging account and liquidating!`);
+      if (!user.is_flagged) {
+        console.log(`\n🚨 MARGIN CALL [USER ${user.user_id}]: Risk PnL $${effectiveRiskPnl.toFixed(2)} is worse than Limit -$${user.loss_limit}. Flagging account and liquidating!`);
 
-      await User.updateOne({ user_id: user.user_id }, { is_flagged: true });
+        await User.updateOne({ user_id: user.user_id }, { is_flagged: true });
 
-      const OrderModel = require('../models/Order');
-      await OrderModel.updateMany(
-        { user_id: user.user_id, status: ORDER_STATUS.OPEN },
-        { status: ORDER_STATUS.CANCELLED_BY_MARGIN_CALL }
-      );
+        const OrderModel = require('../models/Order');
+        await OrderModel.updateMany(
+          { user_id: user.user_id, status: ORDER_STATUS.OPEN },
+          { status: ORDER_STATUS.CANCELLED_BY_MARGIN_CALL }
+        );
 
-      const { placeOrder } = require('./order');
-      if (portfolio.positions) {
-        for (const pos of portfolio.positions) {
-          if (pos.net_quantity > 0) {
-            console.log(`🗡️ Liquidating ${pos.net_quantity} shares of Stock ${pos.stock_id}...`);
-            await placeOrder(user.user_id, pos.stock_id, pos.net_quantity, ORDER_TYPE.MARKET, 0, null, null, ORDER_SIDE.SELL);
+        if (portfolio.positions) {
+          for (const pos of portfolio.positions) {
+            if (pos.net_quantity > 0) {
+              console.log(`🗡️ Liquidating ${pos.net_quantity} shares of Stock ${pos.stock_id}...`);
+              await OrderModel.create({
+                  order_id: 'ORD_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                  user_id: user.user_id,
+                  user_name: user.user_name,
+                  stock_id: pos.stock_id,
+                  side: ORDER_SIDE.SELL,
+                  order_type: ORDER_TYPE.MARKET,
+                  quantity: pos.net_quantity,
+                  price: 0,
+                  status: ORDER_STATUS.OPEN
+              });
+            }
           }
         }
       }
