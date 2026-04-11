@@ -4,7 +4,11 @@ const stockSchema = new mongoose.Schema({
     stock_id: { type: Number, required: true, unique: true },
     symbol: { type: String, required: true },
     stock_name: { type: String, required: true },
-    current_price: { type: Number, required: true }
+    current_price: { type: Number, required: true },
+    fiftyTwoWeekHigh: { type: Number },
+    fiftyTwoWeekLow: { type: Number },
+    dayHigh: { type: Number },
+    dayLow: { type: Number }
 }, { timestamps: true });
 
 // Critical: market stream fires updateOne({ symbol }) on every trade tick.

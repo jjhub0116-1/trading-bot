@@ -16,22 +16,37 @@ async function fetchAndUpdatePrices() {
 
         const symbols = stocks.map(s => s.symbol);
 
-        // Fetch all prices concurrently (same idea as Python's ThreadPoolExecutor)
+        // Fetch all metrics concurrently
         const results = await Promise.allSettled(
             symbols.map(sym =>
-                yahooFinance.quote(sym, { fields: ['regularMarketPrice'] })
-                    .then(q => ({ symbol: sym, price: q.regularMarketPrice }))
+                yahooFinance.quote(sym, { fields: ['regularMarketPrice', 'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'regularMarketDayHigh', 'regularMarketDayLow'] })
+                    .then(q => ({ 
+                        symbol: sym, 
+                        price: q.regularMarketPrice,
+                        fiftyTwoWeekHigh: q.fiftyTwoWeekHigh,
+                        fiftyTwoWeekLow: q.fiftyTwoWeekLow,
+                        dayHigh: q.regularMarketDayHigh,
+                        dayLow: q.regularMarketDayLow
+                    }))
                     .catch(() => ({ symbol: sym, price: null }))
             )
         );
 
-        // Bulk update MongoDB — only update stocks where we got a valid price
+        // Bulk update MongoDB
         const updateOps = results
             .filter(r => r.status === 'fulfilled' && r.value.price != null)
             .map(r => ({
                 updateOne: {
                     filter: { symbol: r.value.symbol },
-                    update: { $set: { current_price: r.value.price } }
+                    update: { 
+                        $set: { 
+                            current_price: r.value.price,
+                            fiftyTwoWeekHigh: r.value.fiftyTwoWeekHigh,
+                            fiftyTwoWeekLow: r.value.fiftyTwoWeekLow,
+                            dayHigh: r.value.dayHigh,
+                            dayLow: r.value.dayLow
+                        } 
+                    }
                 }
             }));
 

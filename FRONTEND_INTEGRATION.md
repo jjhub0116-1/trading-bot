@@ -147,11 +147,32 @@ async function login(email, password) {
 **Success Response `200`:**
 ```json
 [
-  { "stock_id": 101, "symbol": "AAPL",  "stock_name": "Apple Inc",   "current_price": 150.00 },
-  { "stock_id": 102, "symbol": "GOOGL", "stock_name": "Alphabet Inc", "current_price": 2800.00 },
-  { "stock_id": 103, "symbol": "MSFT",  "stock_name": "Microsoft Corp","current_price": 320.00 }
+  { 
+    "stock_id": 101, 
+    "symbol": "AAPL",  
+    "stock_name": "Apple Inc",   
+    "current_price": 150.00,
+    "fiftyTwoWeekHigh": 288.62,
+    "fiftyTwoWeekLow": 164.08,
+    "dayHigh": 182.50,
+    "dayLow": 178.10
+  }
 ]
 ```
+
+**Field Reference:**
+
+| Field | Type | Description |
+|---|---|---|
+| `stock_id` | Number | Unique identifier |
+| `symbol` | String | Ticker symbol (e.g. AAPL) |
+| `stock_name` | String | Full company name |
+| `current_price` | Number | Live real-time market price |
+| `fiftyTwoWeekHigh`| Number | The highest price this stock reached in the last 12 months |
+| `fiftyTwoWeekLow` | Number | The lowest price this stock reached in the last 12 months |
+| `dayHigh` | Number | Today's highest price |
+| `dayLow` | Number | Today's lowest price |
+
 
 **Frontend Usage:**
 ```js
