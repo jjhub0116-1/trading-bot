@@ -152,12 +152,9 @@ async function login(email, password) {
     "symbol": "AAPL",  
     "stock_name": "Apple Inc",   
     "current_price": 150.00,
-    "fiftyTwoWeekHigh": 288.62,
-    "fiftyTwoWeekLow": 164.08,
-    "dayHigh": 182.50,
-    "dayLow": 178.10,
     "previousClose": 148.50,
-    "open": 149.20
+    "open": 149.20,
+    "asset_type": "STOCK"
   }
 ]
 ```
@@ -167,9 +164,10 @@ async function login(email, password) {
 | Field | Type | Description |
 |---|---|---|
 | `stock_id` | Number | Unique identifier |
-| `symbol` | String | Ticker symbol (e.g. AAPL) |
-| `stock_name` | String | Full company name |
+| `symbol` | String | Ticker symbol (e.g. AAPL, GC=F) |
+| `stock_name` | String | Full company or commodity name |
 | `current_price` | Number | Live real-time market price |
+| `asset_type` | String | `"STOCK"` or `"COMMODITY"` — use this to categorize assets in the UI |
 | `fiftyTwoWeekHigh`| Number | The highest price this stock reached in the last 12 months |
 | `fiftyTwoWeekLow` | Number | The lowest price this stock reached in the last 12 months |
 | `dayHigh` | Number | Today's highest price |

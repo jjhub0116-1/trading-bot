@@ -10,7 +10,8 @@ const stockSchema = new mongoose.Schema({
     dayHigh: { type: Number },
     dayLow: { type: Number },
     previousClose: { type: Number },
-    open: { type: Number }
+    open: { type: Number },
+    asset_type: { type: String, enum: ['STOCK', 'COMMODITY'], default: 'STOCK' }
 }, { timestamps: true });
 
 // Critical: market stream fires updateOne({ symbol }) on every trade tick.

@@ -19,7 +19,7 @@ async function fetchAndUpdatePrices() {
         // Fetch all metrics concurrently
         const results = await Promise.allSettled(
             symbols.map(sym =>
-                yahooFinance.quote(sym, { fields: ['regularMarketPrice', 'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'regularMarketDayHigh', 'regularMarketDayLow', 'regularMarketPreviousClose', 'regularMarketOpen'] })
+                yahooFinance.quote(sym)
                     .then(q => ({ 
                         symbol: sym, 
                         price: q.regularMarketPrice,
@@ -30,7 +30,10 @@ async function fetchAndUpdatePrices() {
                         previousClose: q.regularMarketPreviousClose,
                         open: q.regularMarketOpen
                     }))
-                    .catch(() => ({ symbol: sym, price: null }))
+                    .catch(err => {
+                        console.error(`[Fetcher] ${sym} Error:`, err.message);
+                        return { symbol: sym, price: null };
+                    })
             )
         );
 
@@ -77,4 +80,4 @@ function startPriceFetcher() {
     return setInterval(fetchAndUpdatePrices, POLL_INTERVAL_MS);
 }
 
-module.exports = { startPriceFetcher };
+module.exports = { startPriceFetcher, fetchAndUpdatePrices };

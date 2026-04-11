@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-04-11T19:27:13.676Z",
+  "gold_data": {
+    "_id": "69da9f865d319950b22f3c34",
+    "symbol": "GC=F",
+    "__v": 0,
+    "asset_type": "COMMODITY",
+    "createdAt": "2026-04-11T19:22:59.434Z",
+    "current_price": 4787.4,
+    "stock_id": 201,
+    "stock_name": "Gold Futures",
+    "updatedAt": "2026-04-11T19:27:13.568Z",
+    "dayHigh": 4820,
+    "dayLow": 4752.7,
+    "fiftyTwoWeekHigh": 5586.2,
+    "fiftyTwoWeekLow": 3125,
+    "open": 4790.5,
+    "previousClose": 4818
+  },
+  "all_fields_present": true
+}
