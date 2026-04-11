@@ -24,6 +24,7 @@ router.get('/', authMiddleware, async (req, res) => {
             return {
                 ...p.toObject(),
                 current_price: currentPrice,
+                position_type: p.net_quantity >= 0 ? 'LONG' : 'SHORT',
                 unrealized_pnl: posUnrealizedPnl,
                 overall_pnl: posOverallPnl
             };

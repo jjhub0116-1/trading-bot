@@ -199,12 +199,15 @@ const stocks = await api.get('/api/stocks');
 
 **Order Type Guide:**
 
-| Scenario | orderType | price | stopLoss | target |
-|---|---|---|---|---|
-| Buy now at market price | `MARKET` | `0` | `null` | `null` |
-| Buy now with safety bracket | `MARKET` | `0` | `120` | `200` |
-| Buy only if price drops to $140 | `LIMIT` | `140` | `null` | `null` |
-| Sell now at market price | `MARKET` | `0` | `null` | `null` |
+| Scenario | `side` | `orderType` | `price` | `stopLoss` | `target` |
+|---|---|---|---|---|---|
+| Buy now at market price | `BUY` | `MARKET` | `0` | — | — |
+| Buy now with bracket (SL + target) | `BUY` | `MARKET` | `0` | `120` | `200` |
+| Buy only if price drops to $140 | `BUY` | `LIMIT` | `140` | — | — |
+| Sell now at market price | `SELL` | `MARKET` | `0` | — | — |
+| **Short sell** — Sell without owning shares | `SELL` | `MARKET` | `0` | — | — |
+| **Short sell** with bracket (cover if price hits SL/target) | `SELL` | `MARKET` | `0` | `220` | `80` |
+| Sell (limit) only if price rises to $200 | `SELL` | `LIMIT` | `200` | — | — |
 
 **Success Response `200`:**
 ```json
@@ -219,27 +222,107 @@ const stocks = await api.get('/api/stocks');
 
 | Status | Message | Meaning |
 |---|---|---|
-| `400` | `"Insufficient Equity Limits (Share Count Exceeded)"` | User's total shares held + new qty exceeds their equity limit |
-| `400` | `"Insufficient Shares (Or locked in open orders)"` | Trying to sell more shares than they own or have unlocked |
+| `400` | `"Insufficient Equity Limits (Share Count Exceeded)"` | Total absolute share exposure (long + short combined) exceeds the user's equity cap |
 | `400` | `"Stock Not Found"` | The `stockId` doesn't exist in the database |
-| `401` | `"Unauthorized..."` | Missing or no Authorization header |
-| `403` | `"Critical Identity Fault..."` | Token expired or invalid |
+| `400` | `"Account Blocked: Loss limit reached"` | Account is flagged — no new orders allowed |
+| `401` | `"Unauthorized"` | Missing or no Authorization header |
+| `403` | `"Critical Identity Fault"` | Token expired or invalid |
 
 **Frontend Usage:**
 ```js
 async function placeBuyOrder(stockId, quantity, stopLoss = null, target = null) {
   const res = await api.post('/api/orders', {
-    stockId,
-    quantity,
-    orderType: 'MARKET',
-    price: 0,
-    stopLoss,
-    target,
-    side: 'BUY'
+    stockId, quantity, orderType: 'MARKET', price: 0, stopLoss, target, side: 'BUY'
   });
   return res.data; // { success, message, orderId }
 }
+
+// Short sell (sell without owning shares)
+async function placeShortSell(stockId, quantity, stopLoss = null, target = null) {
+  const res = await api.post('/api/orders', {
+    stockId, quantity, orderType: 'MARKET', price: 0,
+    stopLoss,  // Price that triggers BUY to cut losses (cover short)
+    target,    // Price that triggers BUY to take profit (cover short)
+    side: 'SELL'
+  });
+  return res.data;
+}
+
+// Cover a short (buy back shares you shorted)
+async function coverShort(stockId, quantity) {
+  const res = await api.post('/api/orders', {
+    stockId, quantity, orderType: 'MARKET', price: 0, side: 'BUY'
+  });
+  return res.data;
+}
 ```
+
+---
+
+## 4b. Short Selling — Detailed Guide
+
+### What is Short Selling?
+A user can **sell shares they don't own**, betting the price will fall. The backend handles everything natively.
+
+### How It Works
+1. User places a MARKET **SELL** → executes immediately regardless of whether they own the stock
+2. Their `net_quantity` in the portfolio becomes **negative** (e.g., `-50` = short 50 shares)
+3. When they **BUY back** those shares later, the short is closed and P&L is realized
+4. If they never close, the engine watches stop-loss and target every 3 seconds
+
+### Important: Brackets Are Inverted for Shorts
+
+| Event | Long BUY bracket | Short SELL bracket |
+|---|---|---|
+| `target` fires when... | Price **rises** to target | Price **drops** to target |
+| `stop_loss` fires when... | Price **drops** to stop | Price **rises** to stop |
+
+```js
+// Long BUY: target=200 means sell when price RISES to $200
+// Short SELL: target=80 means cover (buy back) when price DROPS to $80
+```
+
+### Portfolio Response for Short Positions
+When a user holds a short, `GET /api/portfolio` returns:
+```json
+{
+  "positions": [
+    {
+      "stock_id": 101,
+      "net_quantity": -50,
+      "average_price": 200.00,
+      "position_type": "SHORT",
+      "unrealized_pnl": 500.00,
+      "realized_pnl": 0,
+      "current_price": 190.00
+    }
+  ]
+}
+```
+
+### P&L Calculation
+The same formula works for both:
+```
+unrealized_pnl = (current_price - average_price) * net_quantity
+
+Long example:  qty=+50, avg=$180, current=$200 → (200-180)*50 = +$1000 profit
+Short example: qty=-50, avg=$200, current=$190 → (190-200)*-50 = +$500 profit
+Short loss:    qty=-50, avg=$200, current=$220 → (220-200)*-50 = -$1000 loss
+```
+
+### Equity Limit for Short Selling
+The equity cap applies to **total absolute exposure** (long + short combined):
+```
+User equity = 5000 shares
+User holds: +1000 AAPL (long) + -500 TSLA (short) = 1500 shares used
+Can short another: 3500 shares max
+```
+
+### Margin Call on Short Positions
+If total effective risk P&L breaches `loss_limit`, the risk engine:
+- **Long positions** → Force-closes via MARKET **SELL**
+- **Short positions** → Force-closes via MARKET **BUY** (covers the short)
+
 
 ---
 
@@ -438,21 +521,26 @@ await modifyOrder('64abc456...', { price: 155, target: 200 });
 }
 ```
 
-**Field Reference:**
+**Position Field Reference:**
 
 | Field | Description |
 |---|---|
-| `positions[]` | Array of every stock the user currently holds |
-| `positions[].stock_id` | Which stock |
-| `positions[].net_quantity` | Shares currently held (will be `0` after a full sell) |
-| `positions[].average_price` | Weighted average price they paid per share |
-| `positions[].realized_pnl` | Profit/Loss already locked in by selling this stock |
-| `positions[].current_price` | Live current value of the stock dynamically evaluated |
-| `positions[].unrealized_pnl` | Live floating PnL dynamically evaluated |
-| `positions[].overall_pnl` | Computed total PnL per stock (`realized` + `unrealized`) |
-| `realized_pnl` | **Total realized P&L across ALL stocks combined** |
-| `unrealized_pnl` | **Total live floating P&L across ALL stocks combined** |
-| `overall_pnl` | **Portfolio true standing (`realized` + `unrealized`)** |
+| `net_quantity` | Shares held. **Positive = LONG, Negative = SHORT** (e.g., `-50` = short 50 shares) |
+| `position_type` | `"LONG"` or `"SHORT"` — use this for UI labels and conditional rendering |
+| `average_price` | Average open price per share |
+| `realized_pnl` | P&L locked in by closing trades on this specific stock |
+| `current_price` | Live price (updated every 5 seconds via Yahoo Finance) |
+| `unrealized_pnl` | Floating P&L — formula: `(current_price - average_price) * net_quantity` |
+| `overall_pnl` | Per-stock total: `realized_pnl + unrealized_pnl` |
+
+**Portfolio Level Fields:**
+
+| Field | Description |
+|---|---|
+| `realized_pnl` | Total realized P&L across ALL stocks combined |
+| `unrealized_pnl` | Total live floating P&L across ALL stocks combined |
+| `overall_pnl` | Portfolio true standing: `realized_pnl + unrealized_pnl` |
+
 
 > 💡 **Tip:** The `GET /api/portfolio` response payload computes all unrealized math and fetching of current live prices entirely on the backend server side! Simply map these values directly into your frontend cards.
 
@@ -586,6 +674,12 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 - The user is permanently flagged (`is_flagged = true`) restricting future orders.
 
 *Algorithm Rule:* Positive Realized Profit does NOT increase the loss limit budget. If a user has `$5000` realized profit, their loss cap remains restricted as if their realized base was `$0`.
+
+**Short positions are included in the margin calculation.** If a user shorts 100 shares at $200, and the price rises to $220, the unrealized loss is `$2,000`. This counts against the same `loss_limit` as regular long position losses.
+
+**Margin call liquidation handles both directions:**
+- **Long positions** → force MARKET SELL to close
+- **Short positions** → force MARKET BUY to cover
 
 **The frontend should:**
 - Poll `/api/portfolio` every few seconds to auto-detect when a margin call zeroed the user's positions
