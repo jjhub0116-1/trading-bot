@@ -34,14 +34,17 @@ async function processAllOpenOrders() {
   if (tickMutex.isLocked()) return;
 
   const release = await tickMutex.acquire();
+  const startTime = Date.now();
   try {
-    // lean() for read-only queries — avoids Mongoose document hydration overhead
     const orders = await Order.find({ status: ORDER_STATUS.OPEN }).lean();
     if (orders.length === 0) return;
 
     const stocksData = await Stock.find({}).lean();
     const stocks = {};
     stocksData.forEach(s => stocks[s.stock_id] = s);
+
+    // Parallelize trade execution tasks
+    const tradeTasks = [];
 
     for (const order of orders) {
       const stock = stocks[order.stock_id];
@@ -50,36 +53,42 @@ async function processAllOpenOrders() {
       // 1. LIMIT Orders
       if (order.order_type === ORDER_TYPE.LIMIT) {
         if (order.side === ORDER_SIDE.BUY && stock.current_price <= order.price) {
-          await executeTrade(order, stock.current_price);
+          tradeTasks.push(executeTrade(order, stock.current_price));
         } else if (order.side === ORDER_SIDE.SELL && stock.current_price >= order.price) {
-          await executeTrade(order, stock.current_price);
+          tradeTasks.push(executeTrade(order, stock.current_price));
         }
       }
-      // 2. Immediate MARKET Orders (no brackets on either side)
+      // 2. Immediate MARKET Orders
       else if (order.order_type === ORDER_TYPE.MARKET && !order.stop_loss && !order.target) {
-        await executeTrade(order, stock.current_price);
+        tradeTasks.push(executeTrade(order, stock.current_price));
       }
-      // 3. Bracket SELL legs (for long BUY positions)
+      // 3. Bracket SELL legs
       else if (order.side === ORDER_SIDE.SELL && order.order_type === ORDER_TYPE.MARKET && (order.stop_loss || order.target)) {
         if (order.target && stock.current_price >= order.target) {
-          console.log(`🎯 TARGET HIT for ${order.order_id}! Selling at $${stock.current_price}`);
-          await executeTrade(order, stock.current_price);
+          tradeTasks.push(executeTrade(order, stock.current_price));
         } else if (order.stop_loss && stock.current_price <= order.stop_loss) {
-          console.log(`📉 STOP LOSS HIT for ${order.order_id}! Selling at $${stock.current_price}`);
-          await executeTrade(order, stock.current_price);
+          tradeTasks.push(executeTrade(order, stock.current_price));
         }
       }
-      // 4. Bracket BUY legs (for short SELL positions — inverse logic)
+      // 4. Bracket BUY legs
       else if (order.side === ORDER_SIDE.BUY && order.order_type === ORDER_TYPE.MARKET && (order.stop_loss || order.target)) {
         if (order.target && stock.current_price <= order.target) {
-          console.log(`🎯 SHORT TARGET HIT for ${order.order_id}! Covering at $${stock.current_price}`);
-          await executeTrade(order, stock.current_price);
+          tradeTasks.push(executeTrade(order, stock.current_price));
         } else if (order.stop_loss && stock.current_price >= order.stop_loss) {
-          console.log(`🛑 SHORT STOP LOSS HIT for ${order.order_id}! Covering at $${stock.current_price}`);
-          await executeTrade(order, stock.current_price);
+          tradeTasks.push(executeTrade(order, stock.current_price));
         }
       }
     }
+
+    if (tradeTasks.length > 0) {
+      await Promise.allSettled(tradeTasks);
+    }
+    
+    const duration = Date.now() - startTime;
+    if (duration > 500) {
+        console.log(`\n⚙️  Engine Tick Complete: Processed ${orders.length} orders (${tradeTasks.length} executed) in ${duration}ms`);
+    }
+
   } catch (error) {
     console.error('Trade Engine Loop Error:', error);
   } finally {

@@ -18,10 +18,10 @@ const TICK_INTERVAL_MS = 3000; // Ultra fast 3-second heartbeat
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Global rate limiter: max 100 requests per minute per IP
+// Scalable Rate Limiter: max 2000 requests per minute per IP to support high-frequency polling
 const limiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 100,
+    max: 2000, 
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Too many requests. Please slow down." }
@@ -48,7 +48,7 @@ app.get('/', (req, res) => {
 
 async function startBot() {
     try {
-        await connectDB();
+        await connectDB({ maxPoolSize: 100 });
         console.log("\n🟢 MongoDB Atlas Trading Bot Server Live Started!");
         console.log(`⏱️ Engine continuously scanning internal MongoDB tables every ${TICK_INTERVAL_MS / 1000} seconds...`);
 
