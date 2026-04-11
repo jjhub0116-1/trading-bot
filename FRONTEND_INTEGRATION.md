@@ -155,7 +155,9 @@ async function login(email, password) {
     "fiftyTwoWeekHigh": 288.62,
     "fiftyTwoWeekLow": 164.08,
     "dayHigh": 182.50,
-    "dayLow": 178.10
+    "dayLow": 178.10,
+    "previousClose": 148.50,
+    "open": 149.20
   }
 ]
 ```
@@ -172,6 +174,8 @@ async function login(email, password) {
 | `fiftyTwoWeekLow` | Number | The lowest price this stock reached in the last 12 months |
 | `dayHigh` | Number | Today's highest price |
 | `dayLow` | Number | Today's lowest price |
+| `previousClose` | Number | Yesterday's closing price |
+| `open` | Number | Today's market open price |
 
 
 **Frontend Usage:**

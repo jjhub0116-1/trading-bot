@@ -8,7 +8,9 @@ const stockSchema = new mongoose.Schema({
     fiftyTwoWeekHigh: { type: Number },
     fiftyTwoWeekLow: { type: Number },
     dayHigh: { type: Number },
-    dayLow: { type: Number }
+    dayLow: { type: Number },
+    previousClose: { type: Number },
+    open: { type: Number }
 }, { timestamps: true });
 
 // Critical: market stream fires updateOne({ symbol }) on every trade tick.

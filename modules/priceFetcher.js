@@ -19,14 +19,16 @@ async function fetchAndUpdatePrices() {
         // Fetch all metrics concurrently
         const results = await Promise.allSettled(
             symbols.map(sym =>
-                yahooFinance.quote(sym, { fields: ['regularMarketPrice', 'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'regularMarketDayHigh', 'regularMarketDayLow'] })
+                yahooFinance.quote(sym, { fields: ['regularMarketPrice', 'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'regularMarketDayHigh', 'regularMarketDayLow', 'regularMarketPreviousClose', 'regularMarketOpen'] })
                     .then(q => ({ 
                         symbol: sym, 
                         price: q.regularMarketPrice,
                         fiftyTwoWeekHigh: q.fiftyTwoWeekHigh,
                         fiftyTwoWeekLow: q.fiftyTwoWeekLow,
                         dayHigh: q.regularMarketDayHigh,
-                        dayLow: q.regularMarketDayLow
+                        dayLow: q.regularMarketDayLow,
+                        previousClose: q.regularMarketPreviousClose,
+                        open: q.regularMarketOpen
                     }))
                     .catch(() => ({ symbol: sym, price: null }))
             )
@@ -44,7 +46,9 @@ async function fetchAndUpdatePrices() {
                             fiftyTwoWeekHigh: r.value.fiftyTwoWeekHigh,
                             fiftyTwoWeekLow: r.value.fiftyTwoWeekLow,
                             dayHigh: r.value.dayHigh,
-                            dayLow: r.value.dayLow
+                            dayLow: r.value.dayLow,
+                            previousClose: r.value.previousClose,
+                            open: r.value.open
                         } 
                     }
                 }
