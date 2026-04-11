@@ -12,7 +12,7 @@ async function checkEquityAvailable(userId, requiredQuantity) {
     let currentTotalShares = 0;
     if (portfolio) {
       portfolio.positions.forEach(p => {
-        if (p.net_quantity > 0) currentTotalShares += p.net_quantity;
+        currentTotalShares += Math.abs(p.net_quantity); // Count both long AND short exposure
       });
     }
 

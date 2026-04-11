@@ -55,17 +55,27 @@ async function processAllOpenOrders() {
           await executeTrade(order, stock.current_price);
         }
       }
-      // 2. Immediate MARKET Orders (All Buys, and Pure Sells without brackets)
-      else if (order.order_type === ORDER_TYPE.MARKET && (order.side === ORDER_SIDE.BUY || (!order.stop_loss && !order.target))) {
+      // 2. Immediate MARKET Orders (no brackets on either side)
+      else if (order.order_type === ORDER_TYPE.MARKET && !order.stop_loss && !order.target) {
         await executeTrade(order, stock.current_price);
       }
-      // 3. Bracket SELL legs
+      // 3. Bracket SELL legs (for long BUY positions)
       else if (order.side === ORDER_SIDE.SELL && order.order_type === ORDER_TYPE.MARKET && (order.stop_loss || order.target)) {
         if (order.target && stock.current_price >= order.target) {
           console.log(`🎯 TARGET HIT for ${order.order_id}! Selling at $${stock.current_price}`);
           await executeTrade(order, stock.current_price);
         } else if (order.stop_loss && stock.current_price <= order.stop_loss) {
           console.log(`📉 STOP LOSS HIT for ${order.order_id}! Selling at $${stock.current_price}`);
+          await executeTrade(order, stock.current_price);
+        }
+      }
+      // 4. Bracket BUY legs (for short SELL positions — inverse logic)
+      else if (order.side === ORDER_SIDE.BUY && order.order_type === ORDER_TYPE.MARKET && (order.stop_loss || order.target)) {
+        if (order.target && stock.current_price <= order.target) {
+          console.log(`🎯 SHORT TARGET HIT for ${order.order_id}! Covering at $${stock.current_price}`);
+          await executeTrade(order, stock.current_price);
+        } else if (order.stop_loss && stock.current_price >= order.stop_loss) {
+          console.log(`🛑 SHORT STOP LOSS HIT for ${order.order_id}! Covering at $${stock.current_price}`);
           await executeTrade(order, stock.current_price);
         }
       }
@@ -115,7 +125,7 @@ async function checkUserRisk(user, stocks, portfolio) {
 
     if (portfolio.positions && portfolio.positions.length > 0) {
       for (const pos of portfolio.positions) {
-        if (pos.net_quantity <= 0) {
+        if (pos.net_quantity === 0) {
           pos.unrealized_pnl = 0;
           pos.overall_pnl = pos.realized_pnl;
           continue;
@@ -174,20 +184,22 @@ async function checkUserRisk(user, stocks, portfolio) {
 
         if (portfolio.positions) {
           for (const pos of portfolio.positions) {
-            if (pos.net_quantity > 0) {
-              console.log(`🗡️ Liquidating ${pos.net_quantity} shares of Stock ${pos.stock_id}...`);
+          if (pos.net_quantity !== 0) {
+              const liquidationSide = pos.net_quantity > 0 ? ORDER_SIDE.SELL : ORDER_SIDE.BUY;
+              const liquidationQty = Math.abs(pos.net_quantity);
+              console.log(`🗡️ Liquidating ${liquidationSide} ${liquidationQty} shares of Stock ${pos.stock_id}...`);
               await OrderModel.create({
                   order_id: 'ORD_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
                   user_id: user.user_id,
                   user_name: user.user_name,
                   stock_id: pos.stock_id,
-                  side: ORDER_SIDE.SELL,
+                  side: liquidationSide,
                   order_type: ORDER_TYPE.MARKET,
-                  quantity: pos.net_quantity,
+                  quantity: liquidationQty,
                   price: 0,
                   status: ORDER_STATUS.OPEN
               });
-            }
+          }
           }
         }
       }

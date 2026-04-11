@@ -17,24 +17,9 @@ async function placeOrder(userId, stockId, quantity, orderType, price, stopLoss,
 
     const executionPrice = orderType === ORDER_TYPE.MARKET ? parseFloat(stock.current_price) : parseFloat(price);
 
-    // BUY: check share-count equity limit
-    if (side === ORDER_SIDE.BUY) {
-      const hasEquity = await checkEquityAvailable(userId, quantity);
-      if (!hasEquity) return 'Insufficient Equity Limits (Share Count Exceeded)';
-    }
-
-    // SELL: check user actually holds enough unlocked shares
-    if (side === ORDER_SIDE.SELL) {
-      const PortfolioModel = require('../models/Portfolio');
-      const portfolio = await PortfolioModel.findOne({ user_id: userId });
-      const position = portfolio ? portfolio.positions.find(p => p.stock_id === stockId) : null;
-
-      const openSells = await Order.find({ user_id: userId, stock_id: stockId, side: ORDER_SIDE.SELL, status: ORDER_STATUS.OPEN });
-      const lockedQty = openSells.reduce((sum, o) => sum + o.quantity, 0);
-
-      const availableQty = position ? position.net_quantity - lockedQty : 0;
-      if (quantity > availableQty) return 'Insufficient Shares (Or locked in open orders)';
-    }
+    // Equity check applies equally for both BUY and SELL (absolute exposure check)
+    const hasEquity = await checkEquityAvailable(userId, quantity);
+    if (!hasEquity) return 'Insufficient Equity Limits (Share Count Exceeded)';
 
     const orderId = 'ORD_' + Date.now();
     const username = await getUserName(userId);

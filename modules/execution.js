@@ -51,7 +51,7 @@ async function executeTrade(order, executionPrice) {
 
     console.log(`✅ Trade executed: ${order.order_id} | ${order.side} ${order.quantity} shares @ $${executionPrice}`);
 
-    // 6. Create bracket child SELL order if BUY had stop_loss or target
+    // 6a. BUY with brackets → spawn bracket SELL exit order
     if (order.side === ORDER_SIDE.BUY && (order.stop_loss || order.target)) {
       const sellOrderId = 'ORD_' + Date.now() + '_EXIT';
       await Order.create({
@@ -65,6 +65,24 @@ async function executeTrade(order, executionPrice) {
         price: null,
         stop_loss: order.stop_loss || null,
         target: order.target || null,
+        status: ORDER_STATUS.OPEN
+      });
+    }
+
+    // 6b. SHORT SELL with brackets → spawn bracket BUY exit order (inverse logic)
+    if (order.side === ORDER_SIDE.SELL && (order.stop_loss || order.target)) {
+      const buyOrderId = 'ORD_' + Date.now() + '_SHORT_EXIT';
+      await Order.create({
+        order_id: buyOrderId,
+        user_id: order.user_id,
+        user_name: order.user_name,
+        stock_id: order.stock_id,
+        side: ORDER_SIDE.BUY,
+        order_type: 'MARKET',
+        quantity: order.quantity,
+        price: null,
+        stop_loss: order.stop_loss || null,  // price rises to this → cut loss (BUY to cover)
+        target: order.target || null,        // price drops to this → take profit (BUY to cover)
         status: ORDER_STATUS.OPEN
       });
     }
