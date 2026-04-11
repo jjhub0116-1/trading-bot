@@ -18,8 +18,13 @@ async function placeOrder(userId, stockId, quantity, orderType, price, stopLoss,
     const executionPrice = orderType === ORDER_TYPE.MARKET ? parseFloat(stock.current_price) : parseFloat(price);
 
     // Equity check applies equally for both BUY and SELL (absolute exposure check)
-    const hasEquity = await checkEquityAvailable(userId, quantity);
-    if (!hasEquity) return 'Insufficient Equity Limits (Share Count Exceeded)';
+    // Now passes stockId to determine if checking Share Equity or Commodity Lot Equity
+    const hasEquity = await checkEquityAvailable(userId, stockId, quantity);
+    if (!hasEquity) {
+      return stock.asset_type === 'COMMODITY' 
+        ? 'Insufficient Commodity Lot Limits (20 Lot Cap Exceeded)' 
+        : 'Insufficient Equity Limits (Share Count Exceeded)';
+    }
 
     const orderId = 'ORD_' + Date.now();
     const username = await getUserName(userId);

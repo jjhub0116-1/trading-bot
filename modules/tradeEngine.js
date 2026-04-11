@@ -143,7 +143,8 @@ async function checkUserRisk(user, stocks, portfolio) {
 
         const stock = stocks[pos.stock_id];
         if (stock && stock.current_price) {
-          const currentUnrealized = (stock.current_price - pos.average_price) * pos.net_quantity;
+          const lotMultiplier = stock.lot_size || 1;
+          const currentUnrealized = (stock.current_price - pos.average_price) * pos.net_quantity * lotMultiplier;
           const currentOverall = pos.realized_pnl + currentUnrealized;
           
           if (pos.unrealized_pnl !== currentUnrealized || pos.overall_pnl !== currentOverall) {

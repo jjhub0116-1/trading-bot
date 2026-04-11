@@ -7,7 +7,9 @@ async function getStock(stockId) {
       id: stock.stock_id,
       symbol: stock.symbol,
       name: stock.stock_name,
-      price: stock.current_price
+      price: stock.current_price,
+      lot_size: stock.lot_size || 1,
+      asset_type: stock.asset_type || 'STOCK'
     } : null;
   } catch (err) {
     return null;

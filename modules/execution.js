@@ -43,13 +43,17 @@ async function executeTrade(order, executionPrice) {
     await session.commitTransaction();
     session.endSession();
 
-    // 4. Update Portfolio (outside transaction — uses Mongoose save() which doesn't support sessions easily)
-    await updatePortfolio(order.user_id, order.user_name, order.stock_id, order.quantity, executionPrice, order.side);
+    // 4. Update Portfolio
+    const Stock = require('../models/Stock');
+    const stock = await Stock.findOne({ stock_id: order.stock_id }).lean();
+    const lotMultiplier = stock?.lot_size || 1;
+    
+    await updatePortfolio(order.user_id, order.user_name, order.stock_id, order.quantity, executionPrice, order.side, lotMultiplier);
 
-    // 5. Log wallet transaction
-    await logTransaction(order.user_id, order.user_name, totalCost, order.stock_id, order.side, order.quantity);
+    // 5. Log wallet transaction (amount is still base price * quantity for ledger, but we calculate exposure elsewhere)
+    await logTransaction(order.user_id, order.user_name, totalCost, order.stock_id, order.side, order.quantity, lotMultiplier);
 
-    console.log(`✅ Trade executed: ${order.order_id} | ${order.side} ${order.quantity} shares @ $${executionPrice}`);
+    console.log(`✅ Trade executed: ${order.order_id} | ${order.side} ${order.quantity} units @ $${executionPrice} (Multiplier x${lotMultiplier})`);
 
     // 6a. BUY with brackets → spawn bracket SELL exit order
     if (order.side === ORDER_SIDE.BUY && (order.stop_loss || order.target)) {

@@ -1,6 +1,6 @@
 const Portfolio = require('../models/Portfolio');
 
-async function updatePortfolio(userId, username, stockId, executedQuantity, executionPrice, side) {
+async function updatePortfolio(userId, username, stockId, executedQuantity, executionPrice, side, lotMultiplier = 1) {
   try {
     let portfolio = await Portfolio.findOne({ user_id: userId });
 
@@ -18,7 +18,7 @@ async function updatePortfolio(userId, username, stockId, executedQuantity, exec
       } else if (position.net_quantity < 0) {
         // Currently SHORT — buying to cover/close
         const closingQty = Math.min(executedQuantity, Math.abs(position.net_quantity));
-        realizedPnl = (position.average_price - executionPrice) * closingQty; // Inverted P&L for shorts
+        realizedPnl = (position.average_price - executionPrice) * closingQty * lotMultiplier; // Inverted P&L for shorts + lot math
         position.net_quantity += executedQuantity;
         position.realized_pnl += realizedPnl;
         portfolio.realized_pnl = (portfolio.realized_pnl || 0) + realizedPnl;
@@ -41,7 +41,7 @@ async function updatePortfolio(userId, username, stockId, executedQuantity, exec
       } else if (position.net_quantity > 0) {
         // Currently LONG — selling, possibly going short on the excess
         const closingQty = Math.min(executedQuantity, position.net_quantity);
-        realizedPnl = (executionPrice - position.average_price) * closingQty;
+        realizedPnl = (executionPrice - position.average_price) * closingQty * lotMultiplier; // Lot math
         position.net_quantity -= executedQuantity;
         position.realized_pnl += realizedPnl;
         portfolio.realized_pnl = (portfolio.realized_pnl || 0) + realizedPnl;

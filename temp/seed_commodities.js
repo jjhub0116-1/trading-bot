@@ -6,11 +6,11 @@ const mongoose = require('mongoose');
 const Stock = require('../models/Stock');
 
 const commodities = [
-    { stock_id: 201, symbol: "GC=F", stock_name: "Gold Futures", asset_type: "COMMODITY", current_price: 2300 },
-    { stock_id: 202, symbol: "SI=F", stock_name: "Silver Futures", asset_type: "COMMODITY", current_price: 28 },
-    { stock_id: 203, symbol: "PL=F", stock_name: "Platinum Jul 26", asset_type: "COMMODITY", current_price: 1000 },
-    { stock_id: 204, symbol: "HG=F", stock_name: "Copper May 26", asset_type: "COMMODITY", current_price: 4 },
-    { stock_id: 205, symbol: "ZS=F", stock_name: "Soybean Futures", asset_type: "COMMODITY", current_price: 11 }
+    { stock_id: 201, symbol: "GC=F", stock_name: "Gold Futures", asset_type: "COMMODITY", current_price: 2300, lot_size: 200 },
+    { stock_id: 202, symbol: "SI=F", stock_name: "Silver Futures", asset_type: "COMMODITY", current_price: 28, lot_size: 500 },
+    { stock_id: 203, symbol: "PL=F", stock_name: "Platinum Jul 26", asset_type: "COMMODITY", current_price: 1000, lot_size: 10 },
+    { stock_id: 204, symbol: "HG=F", stock_name: "Copper May 26", asset_type: "COMMODITY", current_price: 4, lot_size: 10 },
+    { stock_id: 205, symbol: "ZS=F", stock_name: "Soybean Futures", asset_type: "COMMODITY", current_price: 11, lot_size: 10 }
 ];
 
 async function seed() {

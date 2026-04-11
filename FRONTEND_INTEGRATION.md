@@ -213,12 +213,16 @@ const stocks = await api.get('/api/stocks');
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `stockId` | Number | ✅ | The `stock_id` from `/api/stocks` |
-| `quantity` | Number | ✅ | Number of shares to buy/sell |
+| `quantity` | Number | ✅ | For Stocks: **Shares**. For Commodities: **Lots**. |
 | `orderType` | String | ✅ | `"MARKET"` or `"LIMIT"` |
 | `price` | Number | ✅ | Send `0` for MARKET orders. For LIMIT orders, send the limit price |
 | `stopLoss` | Number | ❌ | Optional. If price drops to this, auto-sell triggers |
 | `target` | Number | ❌ | Optional. If price rises to this, auto-sell triggers |
 | `side` | String | ✅ | `"BUY"` or `"SELL"` |
+
+> ⚠️ **IMPORTANT TERMINOLOGY:**
+> - When buying a **STOCK** (e.g., AAPL): `quantity: 10` means 10 shares.
+> - When buying a **COMMODITY** (e.g., Gold): `quantity: 10` means **10 LOTS** (which might be 2000 units).
 
 **Order Type Guide:**
 
@@ -593,10 +597,15 @@ await modifyOrder('64abc456...', { price: 155, target: 200 });
 
 | Field | Description |
 |---|---|
-| `equity` | Total shares the user is allowed to hold at once (set by admin) |
+| `equity` | Total shares allowed for **STOCKS** |
 | `used_equity` | Total shares currently held across ALL stocks |
-| `available_equity` | `equity - used_equity` — how many more shares they can buy |
+| `available_equity` | `equity - used_equity` |
+| `commodity_equity` | Total lots allowed for **COMMODITIES** (default: 20 lots) |
+| `used_commodity_equity` | Total lots currently held across all commodities |
+| `available_commodity_equity` | `commodity_equity - used_commodity_equity` |
 | `loss_limit` | The dollar threshold at which the system auto-liquidates everything |
+
+> 💡 **Tip:** Each Commodity Lot contains **10 units** for P&L calculation. For example, if Gold moves $1, a 1-lot position results in $10 P&L.
 
 **Margin Health Bar (frontend component suggestion):**
 ```js

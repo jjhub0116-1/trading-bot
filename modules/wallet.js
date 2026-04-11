@@ -2,29 +2,72 @@ const User = require('../models/User');
 const WalletTransaction = require('../models/WalletTransaction');
 const Portfolio = require('../models/Portfolio');
 
-async function checkEquityAvailable(userId, requiredQuantity) {
+async function checkEquityAvailable(userId, stockId, requiredQuantity) {
   try {
-    const user = await User.findOne({ user_id: userId });
-    if (!user) return false;
+    const User = require('../models/User'); // Ensure local require to avoid cycles if any
+    const Stock = require('../models/Stock');
+    const Portfolio = require('../models/Portfolio');
 
-    // New schema: one portfolio doc per user with embedded positions[]
+    const user = await User.findOne({ user_id: userId });
+    const stock = await Stock.findOne({ stock_id: stockId });
+    if (!user || !stock) return false;
+
     const portfolio = await Portfolio.findOne({ user_id: userId });
-    let currentTotalShares = 0;
-    if (portfolio) {
+    const openOrders = await Order.find({ user_id: userId, status: 'OPEN' });
+
+    let usedUnits = 0;
+    let usedLots = 0;
+
+    // 1. Count Executed Positions
+    if (portfolio && portfolio.positions) {
+      const allPosStockIds = portfolio.positions.map(p => p.stock_id);
+      const ordersStockIds = openOrders.map(o => o.stock_id);
+      const uniqueStockIds = [...new Set([...allPosStockIds, ...ordersStockIds, stockId])];
+      
+      const stocksInScope = await Stock.find({ stock_id: { $in: uniqueStockIds } }).lean();
+      const stockMap = {};
+      stocksInScope.forEach(s => stockMap[s.stock_id] = s);
+
       portfolio.positions.forEach(p => {
-        currentTotalShares += Math.abs(p.net_quantity); // Count both long AND short exposure
+        const s = stockMap[p.stock_id];
+        const multiplier = s?.lot_size || 1;
+        usedUnits += Math.abs(p.net_quantity) * multiplier;
+        if (s && s.asset_type === 'COMMODITY') {
+          usedLots += Math.abs(p.net_quantity);
+        }
+      });
+
+      // 2. Count OPEN Orders (Exposure that MIGHT execute)
+      openOrders.forEach(o => {
+        const s = stockMap[o.stock_id];
+        const multiplier = s?.lot_size || 1;
+        usedUnits += o.quantity * multiplier;
+        if (s && s.asset_type === 'COMMODITY') {
+          usedLots += o.quantity;
+        }
       });
     }
 
-    // Reject if total shares held + new order would exceed equity limit
-    return (currentTotalShares + requiredQuantity) <= user.equity;
+    // 1. Check Global Unit Limit (Applies to EVERY trade)
+    const multiplier = stock.lot_size || 1;
+    const newUnitExposure = usedUnits + (requiredQuantity * multiplier);
+    
+    if (newUnitExposure > user.equity) return false;
+
+    // 2. Check Commodity Lot Limit (Only for commodities)
+    if (stock.asset_type === 'COMMODITY') {
+      const newLotExposure = usedLots + requiredQuantity;
+      if (newLotExposure > user.commodity_equity) return false;
+    }
+
+    return true;
   } catch (error) {
     console.error("Equity check error:", error);
     return false;
   }
 }
 
-async function logTransaction(userId, username, amount, stockId, side, quantity) {
+async function logTransaction(userId, username, amount, stockId, side, quantity, lotMultiplier = 1) {
   try {
     const transactionId = "TXN_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
     await WalletTransaction.create({
@@ -34,7 +77,8 @@ async function logTransaction(userId, username, amount, stockId, side, quantity)
       amount: amount,
       stock_id: stockId,
       quantity: quantity,
-      side: side
+      side: side,
+      lot_size: lotMultiplier
     });
   } catch (error) {
     console.error("Transaction log error:", error);

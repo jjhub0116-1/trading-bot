@@ -6,6 +6,9 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true },
     password: { type: String, required: true },
     equity: { type: Number, default: 5000 },
+    used_equity: { type: Number, default: 0 },
+    commodity_equity: { type: Number, default: 20 },
+    used_commodity_equity: { type: Number, default: 0 },
     loss_limit: { type: Number, default: 500 },
     is_flagged: { type: Boolean, default: false }
 }, { timestamps: true });
