@@ -18,16 +18,17 @@ async function checkEquityAvailable(userId, stockId, requiredQuantity) {
     let usedUnits = 0;
     let usedLots = 0;
 
-    // 1. Count Executed Positions
-    if (portfolio && portfolio.positions) {
-      const allPosStockIds = portfolio.positions.map(p => p.stock_id);
-      const ordersStockIds = openOrders.map(o => o.stock_id);
-      const uniqueStockIds = [...new Set([...allPosStockIds, ...ordersStockIds, stockId])];
-      
-      const stocksInScope = await Stock.find({ stock_id: { $in: uniqueStockIds } }).lean();
-      const stockMap = {};
-      stocksInScope.forEach(s => stockMap[s.stock_id] = s);
+    // 1. Gather all unique stock IDs to fetch their lot_sizes in one query
+    const allPosStockIds = portfolio?.positions?.map(p => p.stock_id) || [];
+    const ordersStockIds = openOrders.map(o => o.stock_id);
+    const uniqueStockIds = [...new Set([...allPosStockIds, ...ordersStockIds, stockId])];
+    
+    const stocksInScope = await Stock.find({ stock_id: { $in: uniqueStockIds } }).lean();
+    const stockMap = {};
+    stocksInScope.forEach(s => stockMap[s.stock_id] = s);
 
+    // 2. Count Executed Positions
+    if (portfolio && portfolio.positions) {
       portfolio.positions.forEach(p => {
         const s = stockMap[p.stock_id];
         const multiplier = s?.lot_size || 1;
@@ -36,28 +37,32 @@ async function checkEquityAvailable(userId, stockId, requiredQuantity) {
           usedLots += Math.abs(p.net_quantity);
         }
       });
-
-      // 2. Count OPEN Orders (Exposure that MIGHT execute)
-      openOrders.forEach(o => {
-        const s = stockMap[o.stock_id];
-        const multiplier = s?.lot_size || 1;
-        usedUnits += o.quantity * multiplier;
-        if (s && s.asset_type === 'COMMODITY') {
-          usedLots += o.quantity;
-        }
-      });
     }
+
+    // 3. Count OPEN Orders (Exposure that MIGHT execute)
+    openOrders.forEach(o => {
+      const s = stockMap[o.stock_id];
+      const multiplier = s?.lot_size || 1;
+      usedUnits += o.quantity * multiplier;
+      if (s && s.asset_type === 'COMMODITY') {
+        usedLots += o.quantity;
+      }
+    });
 
     // 1. Check Global Unit Limit (Applies to EVERY trade)
     const multiplier = stock.lot_size || 1;
-    const newUnitExposure = usedUnits + (requiredQuantity * multiplier);
+    const newUnitExposure = Number(usedUnits) + (Number(requiredQuantity) * multiplier);
     
-    if (newUnitExposure > user.equity) return false;
+    if (newUnitExposure > user.equity) {
+      return `Insufficient Equity Limits (Share Count Exceeded): Exposure ${newUnitExposure} Units > Limit ${user.equity}`;
+    }
 
     // 2. Check Commodity Lot Limit (Only for commodities)
     if (stock.asset_type === 'COMMODITY') {
-      const newLotExposure = usedLots + requiredQuantity;
-      if (newLotExposure > user.commodity_equity) return false;
+      const newLotExposure = Number(usedLots) + Number(requiredQuantity);
+      if (newLotExposure > user.commodity_equity) {
+        return `Insufficient Commodity Lot Limits (20 Lot Cap Exceeded): Exposure ${newLotExposure} Lots > Limit ${user.commodity_equity}`;
+      }
     }
 
     return true;

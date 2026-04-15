@@ -19,12 +19,10 @@ async function placeOrder(userId, stockId, quantity, orderType, price, stopLoss,
 
     // Equity check applies equally for both BUY and SELL (absolute exposure check)
     // Now passes stockId to determine if checking Share Equity or Commodity Lot Equity
-    const hasEquity = await checkEquityAvailable(userId, stockId, quantity);
-    if (!hasEquity) {
-      return stock.asset_type === 'COMMODITY' 
-        ? 'Insufficient Commodity Lot Limits (20 Lot Cap Exceeded)' 
-        : 'Insufficient Equity Limits (Share Count Exceeded)';
-    }
+    const checkResult = await checkEquityAvailable(user.user_id, stock.stock_id, quantity);
+  if (checkResult !== true) {
+    return checkResult; // Returns specific error string from wallet.js
+  }
 
     const orderId = 'ORD_' + Date.now();
     const username = await getUserName(userId);
