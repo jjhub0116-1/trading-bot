@@ -24,6 +24,9 @@ async function getAllStocks() {
       symbol: s.symbol,
       stock_name: s.stock_name,
       current_price: s.current_price,
+      price: s.current_price,          // backward-compat alias
+      name: s.stock_name,              // backward-compat alias
+      id: s.stock_id,                  // backward-compat alias
       asset_type: s.asset_type || 'STOCK',
       lot_size: s.lot_size || 1,
       fiftyTwoWeekHigh: s.fiftyTwoWeekHigh,
