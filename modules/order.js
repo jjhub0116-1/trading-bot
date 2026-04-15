@@ -15,14 +15,13 @@ async function placeOrder(userId, stockId, quantity, orderType, price, stopLoss,
     if (!user) return 'User Not Found';
     if (user.is_flagged) return 'Account Blocked: Loss limit reached';
 
-    const executionPrice = orderType === ORDER_TYPE.MARKET ? parseFloat(stock.current_price) : parseFloat(price);
+    const executionPrice = orderType === ORDER_TYPE.MARKET ? parseFloat(stock.price) : parseFloat(price);
 
     // Equity check applies equally for both BUY and SELL (absolute exposure check)
-    // Now passes stockId to determine if checking Share Equity or Commodity Lot Equity
-    const checkResult = await checkEquityAvailable(user.user_id, stock.stock_id, quantity);
-  if (checkResult !== true) {
-    return checkResult; // Returns specific error string from wallet.js
-  }
+    const checkResult = await checkEquityAvailable(user.user_id, stock.id, quantity);
+    if (checkResult !== true) {
+      return checkResult; // Returns specific error string from wallet.js
+    }
 
     const orderId = 'ORD_' + Date.now();
     const username = await getUserName(userId);
