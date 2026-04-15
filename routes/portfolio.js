@@ -12,12 +12,14 @@ router.get('/', authMiddleware, async (req, res) => {
 
         const stocksData = await Stock.find({}).lean();
         const stockMap = {};
-        stocksData.forEach(s => stockMap[s.stock_id] = s.current_price);
+        stocksData.forEach(s => stockMap[s.stock_id] = s);
 
         let totalUnrealizedPnl = 0;
         const positions = portfolio.positions.map(p => {
-            const currentPrice = stockMap[p.stock_id] || p.average_price;
-            const posUnrealizedPnl = (currentPrice - p.average_price) * p.net_quantity;
+            const stockInfo = stockMap[p.stock_id];
+            const currentPrice = stockInfo?.current_price || p.average_price;
+            const lotSize = stockInfo?.lot_size || 1;
+            const posUnrealizedPnl = (currentPrice - p.average_price) * p.net_quantity * lotSize;
             const posOverallPnl = p.realized_pnl + posUnrealizedPnl;
             totalUnrealizedPnl += posUnrealizedPnl;
             
