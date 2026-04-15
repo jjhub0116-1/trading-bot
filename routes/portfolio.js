@@ -35,6 +35,7 @@ router.get('/', authMiddleware, async (req, res) => {
         const overallPnl = (portfolio.realized_pnl || 0) + totalUnrealizedPnl;
 
         res.json({
+            _id: portfolio._id,
             user_id: portfolio.user_id,
             user_name: portfolio.user_name,
             positions,

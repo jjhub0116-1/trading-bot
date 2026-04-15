@@ -54,14 +54,14 @@ async function checkEquityAvailable(userId, stockId, requiredQuantity) {
     const newUnitExposure = Number(usedUnits) + (Number(requiredQuantity) * multiplier);
     
     if (newUnitExposure > user.equity) {
-      return `Insufficient Equity Limits (Share Count Exceeded): Exposure ${newUnitExposure} Units > Limit ${user.equity}`;
+      return 'Insufficient Equity Limits (Share Count Exceeded)';
     }
 
     // 2. Check Commodity Lot Limit (Only for commodities)
     if (stock.asset_type === 'COMMODITY') {
       const newLotExposure = Number(usedLots) + Number(requiredQuantity);
       if (newLotExposure > user.commodity_equity) {
-        return `Insufficient Commodity Lot Limits (20 Lot Cap Exceeded): Exposure ${newLotExposure} Lots > Limit ${user.commodity_equity}`;
+        return 'Insufficient Commodity Lot Limits (20 Lot Cap Exceeded)'; // Also matches exact screenshot error
       }
     }
 
