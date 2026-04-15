@@ -12,6 +12,7 @@ async function checkEquityAvailable(userId, stockId, requiredQuantity) {
     const stock = await Stock.findOne({ stock_id: stockId });
     if (!user || !stock) return false;
 
+    const Order = require('../models/Order');
     const portfolio = await Portfolio.findOne({ user_id: userId });
     const openOrders = await Order.find({ user_id: userId, status: 'OPEN' });
 
