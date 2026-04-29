@@ -11,6 +11,7 @@ const ordersRoutes = require('./routes/orders');
 const portfolioRoutes = require('./routes/portfolio');
 const walletRoutes = require('./routes/wallet');
 const stockRoutes = require('./routes/stocks');
+const adminRoutes = require('./routes/admin');
 const { startPriceFetcher } = require('./modules/priceFetcher');
 
 const TICK_INTERVAL_MS = 3000; // Ultra fast 3-second heartbeat
@@ -40,6 +41,7 @@ app.use('/api/orders', ordersRoutes);
 app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/stocks', stockRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Render Sleep-Prevention Endpoint
 app.get('/', (req, res) => {

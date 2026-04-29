@@ -735,3 +735,54 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 | `GET` | `/api/portfolio` | ✅ | — | Holdings + live realized/unrealized/overall P&L |
 | `GET` | `/api/wallet` | ✅ | — | Share equity limit + available buying power |
 | `GET` | `/api/wallet/transactions` | ✅ | — | Full trade transaction ledger with quantities |
+| `POST` | `/api/admin/create-admin` | ✅ (Superadmin) | — | Create a new admin account |
+| `POST` | `/api/admin/create-user` | ✅ (Admin) | — | Create a new user account |
+| `PUT` | `/api/admin/users/:user_id` | ✅ (Admin) | Custom `user_id` | Update user limits/flags |
+
+---
+
+## 11. Admin Routes
+
+### POST `/api/admin/create-admin`
+**Auth required:** ✅ Yes (Superadmin Bearer token)  
+**Purpose:** Create a new admin. Can only be performed by a Superadmin.
+
+**Request Body:**
+```json
+{
+  "user_name": "Admin Jane",
+  "email": "jane@admin.com",
+  "password": "securepassword123",
+  "equity_lot_limit": 100000,
+  "loss_limit": 10000
+}
+```
+
+### POST `/api/admin/create-user`
+**Auth required:** ✅ Yes (Admin Bearer token)  
+**Purpose:** Create a new user. The `equity` is deducted from the Admin's `equity_lot_limit`.
+
+**Request Body:**
+```json
+{
+  "user_name": "Trader John",
+  "email": "john@trader.com",
+  "password": "securepassword123",
+  "equity": 5000,
+  "loss_limit": 500
+}
+```
+
+### PUT `/api/admin/users/:user_id`
+**Auth required:** ✅ Yes (Admin Bearer token)  
+**URL param:** `:user_id` is the custom numeric ID of the user  
+**Purpose:** Update a user's limits or flag their account. An admin can only update users they created.
+
+**Request Body** *(send only what you want to change):*
+```json
+{
+  "equity": 6000,
+  "loss_limit": 600,
+  "is_flagged": false
+}
+```

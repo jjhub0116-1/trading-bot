@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('JWT_SECRET env var is required — never use a hardcoded fallback');
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -14,7 +15,11 @@ function authMiddleware(req, res, next) {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded; // { id, email, name, role }
+        const user = await User.findById(decoded.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+        req.user = user;
         next();
     } catch (err) {
         return res.status(403).json({ success: false, message: 'Forbidden: Token expired or invalid.' });
@@ -22,19 +27,17 @@ function authMiddleware(req, res, next) {
 }
 
 authMiddleware.isSuperAdmin = (req, res, next) => {
-    if (req.user && req.user.role === 'superadmin') {
-        next();
-    } else {
-        return res.status(403).json({ success: false, error: 'Access denied. Superadmin only.' });
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).send({ error: 'Access denied. Superadmin only.' });
     }
+    next();
 };
 
 authMiddleware.isAdmin = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
-        next();
-    } else {
-        return res.status(403).json({ success: false, error: 'Access denied. Admin only.' });
+    if (req.user.role !== 'admin') {
+        return res.status(403).send({ error: 'Access denied. Admin only.' });
     }
+    next();
 };
 
 module.exports = authMiddleware;

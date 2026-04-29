@@ -31,7 +31,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user.user_id, email: user.email, name: user.user_name },
+            { id: user.user_id, email: user.email, name: user.user_name, role: user.role },
             JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -40,7 +40,7 @@ router.post('/login', loginLimiter, async (req, res) => {
             success: true,
             message: 'Login Successful',
             token,
-            user: { id: user.user_id, name: user.user_name, email: user.email }
+            user: { id: user.user_id, name: user.user_name, email: user.email, role: user.role }
         });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -64,7 +64,7 @@ router.post('/register', loginLimiter, async (req, res) => {
 
         // Auto-login after registration
         const token = jwt.sign(
-            { id: userOrError.user_id, email: userOrError.email, name: userOrError.user_name },
+            { id: userOrError.user_id, email: userOrError.email, name: userOrError.user_name, role: userOrError.role },
             JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -73,7 +73,7 @@ router.post('/register', loginLimiter, async (req, res) => {
             success: true,
             message: 'Registration Successful',
             token,
-            user: { id: userOrError.user_id, name: userOrError.user_name, email: userOrError.email }
+            user: { id: userOrError.user_id, name: userOrError.user_name, email: userOrError.email, role: userOrError.role }
         });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });

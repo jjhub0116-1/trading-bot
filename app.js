@@ -1,87 +1,14 @@
-const { initSheets } = require("./config/sheetsClient");
-const { signup, login } = require("./modules/auth");
-//const { getSheetsInstance } = require("../config/sheetsClient");
+const express = require('express');
+require('dotenv').config();
+const roleManagement = require('../role-management');
 
-//async function main() {
-//  try {
-//    // ✅ Initialize Google Sheets ONCE
-//    await initSheets();
-//
-//    // ✅ Call your function from here
-//    const result = await signup(
-//      "John Doe",
-//      "john@example.com",
-//      "123456"
-//    );
-//
-//    console.log(result);
-//
-//  } catch (error) {
-//    console.error("App Error:", error);
-//  }
-//}
+console.log('🔍 MONGO_URI:', process.env.MONGO_URI ? '✅ Loaded' : '❌ Not loaded');
+console.log('🔍 JWT_SECRET:', process.env.JWT_SECRET ? '✅ Loaded' : '❌ Not loaded');
 
-//async function main() {
-//  try {
-//    // ✅ Initialize Google Sheets ONCE
-//    await initSheets();
-//
-//    // ✅ Call your function from here
-//    const result = await login(
-//      "john@example.com",
-//      "123456"
-//    );
-//
-//    console.log(result);
-//
-//  } catch (error) {
-//    console.error("App Error:", error);
-//  }
-//}
+const app = express();
 
-//async function main() {
-//  try {
-//    // ✅ Initialize Google Sheets ONCE
-//    await initSheets();
-//
-//    // ✅ Call your function from here
-//    const result = await login(
-//      "john@example.com",
-//      "123456"
-//    );
-//
-//    console.log(result);
-//
-//  } catch (error) {
-//    console.error("App Error:", error);
-//  }
-//}
-//
-//main();
+// Initialize the role management module
+roleManagement(app, process.env.MONGO_URI, process.env.JWT_SECRET);
 
-//const { initSheets } = require("./config/sheetsClient");
-const { placeOrder } = require("./modules/order");
-
-async function main() {
-  try {
-    await initSheets();
-
-    const orderId = await placeOrder(
-      1,
-      1,
-      10,
-      "MARKET",
-      100,
-      95,
-      110,
-      "BUY"
-    );
-
-    console.log("Order Result:", orderId);
-
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-main();
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
