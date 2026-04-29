@@ -13,6 +13,8 @@ const userSchema = new mongoose.Schema({
     equity_lot_limit: { type: Number, default: 0 },
     loss_limit: { type: Number, default: 500 },
     is_flagged: { type: Boolean, default: false },
+    can_trade_stocks: { type: Boolean, default: true },
+    can_trade_commodities: { type: Boolean, default: true },
     created_by: { type: Number, default: null } // Stores user_id of the admin who created them
 }, { timestamps: true });
 

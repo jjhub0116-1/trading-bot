@@ -41,7 +41,7 @@ exports.createAdmin = async (req, res) => {
 
 exports.createUser = async (req, res) => {
     try {
-        const { user_name, email, password, equity, loss_limit } = req.body;
+        const { user_name, email, password, equity, loss_limit, can_trade_stocks, can_trade_commodities } = req.body;
         
         // Find admin using their custom user_id (not ObjectId)
         const admin = await User.findOne({ user_id: req.user.id });
@@ -69,6 +69,8 @@ exports.createUser = async (req, res) => {
             role: 'user',
             equity: equity || 5000,
             loss_limit: loss_limit || 500,
+            can_trade_stocks: can_trade_stocks !== undefined ? can_trade_stocks : true,
+            can_trade_commodities: can_trade_commodities !== undefined ? can_trade_commodities : true,
             created_by: req.user.id
         });
 
@@ -111,7 +113,7 @@ exports.updateUser = async (req, res) => {
         }
 
         // Apply updates
-        const allowedUpdates = ['user_name', 'equity', 'loss_limit', 'is_flagged'];
+        const allowedUpdates = ['user_name', 'equity', 'loss_limit', 'is_flagged', 'can_trade_stocks', 'can_trade_commodities'];
         allowedUpdates.forEach(update => {
             if (updates[update] !== undefined) {
                 user[update] = updates[update];
@@ -126,5 +128,16 @@ exports.updateUser = async (req, res) => {
     } catch (error) {
         console.error('Update user error:', error);
         res.status(400).send({ error: error.message });
+    }
+};
+
+exports.getUsers = async (req, res) => {
+    try {
+        // Find all users created by this admin
+        const users = await User.find({ created_by: req.user.id }).select('-password');
+        res.status(200).send(users);
+    } catch (error) {
+        console.error('Get users error:', error);
+        res.status(500).send({ error: 'Server error fetching users' });
     }
 };

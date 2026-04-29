@@ -7,6 +7,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.post('/create-admin', authMiddleware, authMiddleware.isSuperAdmin, adminController.createAdmin);
 
 // Admin routes
+router.get('/users', authMiddleware, authMiddleware.isAdmin, adminController.getUsers);
 router.post('/create-user', authMiddleware, authMiddleware.isAdmin, adminController.createUser);
 router.put('/users/:userId', authMiddleware, authMiddleware.isAdmin, adminController.updateUser);
 

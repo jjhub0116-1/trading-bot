@@ -758,6 +758,29 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 }
 ```
 
+### GET `/api/admin/users`
+**Auth required:** ✅ Yes (Admin Bearer token)  
+**Purpose:** Fetch a list of all users that the currently logged-in Admin created.
+
+**Success Response `200`:**
+```json
+[
+  {
+    "user_id": 105,
+    "user_name": "Trader John",
+    "email": "john@trader.com",
+    "role": "user",
+    "equity": 5000,
+    "loss_limit": 500,
+    "is_flagged": false,
+    "can_trade_stocks": true,
+    "can_trade_commodities": true,
+    "created_by": 101,
+    "createdAt": "2026-03-30T10:00:00.000Z"
+  }
+]
+```
+
 ### POST `/api/admin/create-user`
 **Auth required:** ✅ Yes (Admin Bearer token)  
 **Purpose:** Create a new user. The `equity` is deducted from the Admin's `equity_lot_limit`.
@@ -769,20 +792,24 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
   "email": "john@trader.com",
   "password": "securepassword123",
   "equity": 5000,
-  "loss_limit": 500
+  "loss_limit": 500,
+  "can_trade_stocks": true,
+  "can_trade_commodities": true
 }
 ```
 
 ### PUT `/api/admin/users/:user_id`
 **Auth required:** ✅ Yes (Admin Bearer token)  
 **URL param:** `:user_id` is the custom numeric ID of the user  
-**Purpose:** Update a user's limits or flag their account. An admin can only update users they created.
+**Purpose:** Update a user's limits or trading permissions. An admin can only update users they created.
 
 **Request Body** *(send only what you want to change):*
 ```json
 {
   "equity": 6000,
   "loss_limit": 600,
-  "is_flagged": false
+  "is_flagged": false,
+  "can_trade_stocks": false,
+  "can_trade_commodities": true
 }
 ```
