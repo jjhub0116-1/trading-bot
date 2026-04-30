@@ -50,7 +50,7 @@ async function runTests() {
             user_name: "Test Admin",
             email: "admin@test.com",
             password: "password123",
-            equity_lot_limit: 50000,
+            lot_limit: 50000,
             loss_limit: 5000
         })
     });
@@ -78,7 +78,7 @@ async function runTests() {
             user_name: "Test User",
             email: "user@test.com",
             password: "password123",
-            equity: 10000,
+            lot_limit: 100,
             loss_limit: 1000
         })
     });
@@ -93,10 +93,10 @@ async function runTests() {
 
     console.log("\n--- TEST 4: Check if Admin limits decreased ---");
     const updatedAdmin = await User.findOne({ email: "admin@test.com" });
-    if (updatedAdmin.equity_lot_limit === 40000) {
-        console.log("✅ Admin equity lot limit decreased successfully (Now 40000)");
+    if (updatedAdmin.commodity_equity === 49900) {
+        console.log("✅ Admin lot limit decreased successfully (Now 49900)");
     } else {
-        console.error("❌ Admin limit not updated correctly. Current:", updatedAdmin.equity_lot_limit);
+        console.error("❌ Admin limit not updated correctly. Current:", updatedAdmin.commodity_equity);
     }
 
     console.log("\n--- TEST 5: Admin attempts to create User exceeding limits ---");
@@ -107,7 +107,7 @@ async function runTests() {
             user_name: "Greedy User",
             email: "greedy@test.com",
             password: "password123",
-            equity: 45000,
+            lot_limit: 50000,
             loss_limit: 1000
         })
     });
@@ -137,7 +137,7 @@ async function runTests() {
             user_name: "Fake User",
             email: "fake@test.com",
             password: "password123",
-            equity: 1000,
+            lot_limit: 10,
             loss_limit: 100
         })
     });
@@ -153,17 +153,17 @@ async function runTests() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
         body: JSON.stringify({
-            equity: 15000
+            lot_limit: 150
         })
     });
 
     if (res5.status === 200) {
         console.log("✅ Admin successfully updated user equity");
         const adminAfterUpdate = await User.findOne({ email: "admin@test.com" });
-        if (adminAfterUpdate.equity_lot_limit === 35000) {
-            console.log("✅ Admin limit properly deducted after user update (Now 35000)");
+        if (adminAfterUpdate.commodity_equity === 49850) {
+            console.log("✅ Admin limit properly deducted after user update (Now 49850)");
         } else {
-            console.error("❌ Admin limit mismatch after update. Current:", adminAfterUpdate.equity_lot_limit);
+            console.error("❌ Admin limit mismatch after update. Current:", adminAfterUpdate.commodity_equity);
         }
     } else {
         console.error("❌ Failed to update user", await res5.json());

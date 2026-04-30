@@ -9,7 +9,7 @@ async function generateUserId() {
 
 exports.createAdmin = async (req, res) => {
     try {
-        const { user_name, email, password, equity_lot_limit, loss_limit } = req.body;
+        const { user_name, email, password, lot_limit, loss_limit } = req.body;
         
         const existing = await User.findOne({ email });
         if (existing) return res.status(400).send({ error: 'Email already in use' });
@@ -23,7 +23,7 @@ exports.createAdmin = async (req, res) => {
             email,
             password: hashedPassword,
             role: 'admin',
-            equity_lot_limit: equity_lot_limit || 0,
+            commodity_equity: lot_limit || 0,
             loss_limit: loss_limit || 500,
             created_by: req.user.id
         });
@@ -41,14 +41,14 @@ exports.createAdmin = async (req, res) => {
 
 exports.createUser = async (req, res) => {
     try {
-        const { user_name, email, password, equity, loss_limit, can_trade_stocks, can_trade_commodities } = req.body;
+        const { user_name, email, password, lot_limit, loss_limit, can_trade_stocks, can_trade_commodities } = req.body;
         
         // Find admin using their custom user_id (not ObjectId)
         const admin = await User.findOne({ user_id: req.user.id });
         if (!admin) return res.status(404).send({ error: 'Admin not found' });
 
-        if (admin.equity_lot_limit < equity) {
-            return res.status(400).send({ error: 'Equity exceeds admin lot limit' });
+        if (admin.commodity_equity < lot_limit) {
+            return res.status(400).send({ error: 'Lot limit exceeds admin lot limit pool' });
         }
 
         if (admin.loss_limit < loss_limit) {
@@ -67,7 +67,7 @@ exports.createUser = async (req, res) => {
             email,
             password: hashedPassword,
             role: 'user',
-            equity: equity || 5000,
+            commodity_equity: lot_limit !== undefined ? lot_limit : 20,
             loss_limit: loss_limit || 500,
             can_trade_stocks: can_trade_stocks !== undefined ? can_trade_stocks : true,
             can_trade_commodities: can_trade_commodities !== undefined ? can_trade_commodities : true,
@@ -75,9 +75,8 @@ exports.createUser = async (req, res) => {
         });
 
         // Deduct from admin limits
-        admin.equity_lot_limit -= equity;
-        // Optionally deduct loss_limit here if the requirement implies it.
-        // admin.loss_limit -= loss_limit; 
+        admin.commodity_equity -= (lot_limit !== undefined ? lot_limit : 20);
+        admin.loss_limit -= loss_limit; 
         await admin.save();
 
         await user.save();
@@ -103,17 +102,27 @@ exports.updateUser = async (req, res) => {
             return res.status(404).send({ error: 'User not found or you do not have permission' });
         }
 
-        if (updates.equity !== undefined) {
-            const equityDifference = updates.equity - user.equity;
-            if (admin.equity_lot_limit < equityDifference) {
-                return res.status(400).send({ error: 'Equity difference exceeds admin lot limit' });
+        if (updates.lot_limit !== undefined) {
+            const lotDifference = updates.lot_limit - user.commodity_equity;
+            if (admin.commodity_equity < lotDifference) {
+                return res.status(400).send({ error: 'Lot limit difference exceeds admin lot limit pool' });
             }
-            admin.equity_lot_limit -= equityDifference;
-            await admin.save();
+            admin.commodity_equity -= lotDifference;
+            user.commodity_equity = updates.lot_limit;
         }
 
-        // Apply updates
-        const allowedUpdates = ['user_name', 'equity', 'loss_limit', 'is_flagged', 'can_trade_stocks', 'can_trade_commodities'];
+        if (updates.loss_limit !== undefined) {
+            const lossDifference = updates.loss_limit - user.loss_limit;
+            if (admin.loss_limit < lossDifference) {
+                return res.status(400).send({ error: 'Loss limit difference exceeds admin limit' });
+            }
+            admin.loss_limit -= lossDifference;
+        }
+        
+        await admin.save();
+
+        // Apply updates (equity is intentionally excluded here as it's default)
+        const allowedUpdates = ['user_name', 'loss_limit', 'is_flagged', 'can_trade_stocks', 'can_trade_commodities'];
         allowedUpdates.forEach(update => {
             if (updates[update] !== undefined) {
                 user[update] = updates[update];

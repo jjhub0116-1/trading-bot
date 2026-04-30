@@ -753,7 +753,7 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
   "user_name": "Admin Jane",
   "email": "jane@admin.com",
   "password": "securepassword123",
-  "equity_lot_limit": 100000,
+  "lot_limit": 100000,
   "loss_limit": 10000
 }
 ```
@@ -783,7 +783,7 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 
 ### POST `/api/admin/create-user`
 **Auth required:** ✅ Yes (Admin Bearer token)  
-**Purpose:** Create a new user. The `equity` is deducted from the Admin's `equity_lot_limit`.
+**Purpose:** Create a new user. The `lot_limit` (commodity lots) is deducted from the Admin's pool. (User `equity` for stocks is automatically set to default).
 
 **Request Body:**
 ```json
@@ -791,7 +791,7 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
   "user_name": "Trader John",
   "email": "john@trader.com",
   "password": "securepassword123",
-  "equity": 5000,
+  "lot_limit": 50,
   "loss_limit": 500,
   "can_trade_stocks": true,
   "can_trade_commodities": true
@@ -806,7 +806,7 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 **Request Body** *(send only what you want to change):*
 ```json
 {
-  "equity": 6000,
+  "lot_limit": 60,
   "loss_limit": 600,
   "is_flagged": false,
   "can_trade_stocks": false,
