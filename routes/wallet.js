@@ -6,7 +6,7 @@ const Portfolio = require('../models/Portfolio');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // GET /api/wallet
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', [authMiddleware, authMiddleware.isUser], async (req, res) => {
     try {
         const user = await User.findOne({ user_id: req.user.id });
         if (!user) return res.status(404).json({ error: "User not found" });

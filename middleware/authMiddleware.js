@@ -37,4 +37,13 @@ authMiddleware.isAdmin = (req, res, next) => {
     }
 };
 
+authMiddleware.isUser = (req, res, next) => {
+    // If there is no role, or the role is 'user', allow access
+    if (req.user && (!req.user.role || req.user.role === 'user')) {
+        next();
+    } else {
+        return res.status(403).json({ success: false, error: 'Access denied. Only standard users can perform this action.' });
+    }
+};
+
 module.exports = authMiddleware;

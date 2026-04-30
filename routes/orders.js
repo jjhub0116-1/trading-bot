@@ -6,7 +6,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 const { ORDER_TYPE, ORDER_SIDE, ORDER_STATUS } = require('../config/constants');
 
 // POST /api/orders — Place a BUY or SELL order
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', [authMiddleware, authMiddleware.isUser], async (req, res) => {
     try {
         const { stockId, quantity, orderType, price, stopLoss, target, side } = req.body;
 
@@ -41,7 +41,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // GET /api/orders — Order history for authenticated user
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', [authMiddleware, authMiddleware.isUser], async (req, res) => {
     try {
         const orders = await Order.find({ user_id: req.user.id }).sort({ createdAt: -1 }).lean();
         res.json(orders);
@@ -50,7 +50,7 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 });
 // PUT /api/orders/:id/cancel — Cancel an open order
-router.put('/:id/cancel', authMiddleware, async (req, res) => {
+router.put('/:id/cancel', [authMiddleware, authMiddleware.isUser], async (req, res) => {
     try {
         const mongoId = req.params.id;
         const order = await Order.findOne({ _id: mongoId, user_id: req.user.id });
@@ -68,7 +68,7 @@ router.put('/:id/cancel', authMiddleware, async (req, res) => {
 });
 
 // PUT /api/orders/:id/modify — Modify limit price, stopLoss, or target
-router.put('/:id/modify', authMiddleware, async (req, res) => {
+router.put('/:id/modify', [authMiddleware, authMiddleware.isUser], async (req, res) => {
     try {
         const mongoId = req.params.id;
         const { price, stopLoss, target } = req.body;

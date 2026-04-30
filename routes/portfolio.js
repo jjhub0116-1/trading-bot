@@ -5,7 +5,7 @@ const Stock = require('../models/Stock');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // GET /api/portfolio — Returns portfolio with dynamically calculated unrealized P&L
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', [authMiddleware, authMiddleware.isUser], async (req, res) => {
     try {
         const portfolio = await Portfolio.findOne({ user_id: req.user.id });
         if (!portfolio) return res.json({ positions: [], realized_pnl: 0, unrealized_pnl: 0, overall_pnl: 0 });

@@ -31,8 +31,8 @@ async function testRenderAPI() {
             'Authorization': `Bearer ${superAdminToken}`
         },
         body: JSON.stringify({
-            user_name: "Render Test Admin",
-            email: "renderadmin@propfirm.com",
+            user_name: "Render Test Admin 2",
+            email: "renderadmin2@propfirm.com",
             password: "password123",
             lot_limit: 50000,
             loss_limit: 5000
