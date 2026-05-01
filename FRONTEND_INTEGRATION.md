@@ -736,8 +736,10 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 | `GET` | `/api/wallet` | ✅ | — | Share equity limit + available buying power |
 | `GET` | `/api/wallet/transactions` | ✅ | — | Full trade transaction ledger with quantities |
 | `POST` | `/api/admin/create-admin` | ✅ (Superadmin) | — | Create a new admin account |
+| `GET` | `/api/admin/users` | ✅ (Admin/Superadmin) | — | Fetch list of users (Superadmin sees all, Admin sees created by them) |
+| `GET` | `/api/admin/users/:userId` | ✅ (Admin/Superadmin) | Custom `userId` | Fetch details of a specific user |
 | `POST` | `/api/admin/create-user` | ✅ (Admin) | — | Create a new user account |
-| `PUT` | `/api/admin/users/:user_id` | ✅ (Admin) | Custom `user_id` | Update user limits/flags |
+| `PUT` | `/api/admin/users/:userId` | ✅ (Admin/Superadmin) | Custom `userId` | Update user limits/flags |
 
 ---
 
@@ -759,8 +761,10 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 ```
 
 ### GET `/api/admin/users`
-**Auth required:** ✅ Yes (Admin Bearer token)  
-**Purpose:** Fetch a list of all users that the currently logged-in Admin created.
+**Auth required:** ✅ Yes (Admin or Superadmin Bearer token)  
+**Purpose:** Fetch a list of users.
+- **Admin**: Returns all users created by this Admin.
+- **Superadmin**: Returns every User and Admin in the system.
 
 **Success Response `200`:**
 ```json
@@ -771,6 +775,8 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
     "email": "john@trader.com",
     "role": "user",
     "equity": 5000,
+    "commodity_equity": 20,
+    "used_commodity_equity": 0,
     "loss_limit": 500,
     "is_flagged": false,
     "can_trade_stocks": true,
@@ -780,10 +786,19 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
   }
 ]
 ```
+> ⚠️ **Terminology Note:** In the database and API responses, **"lot limit"** is strictly represented by the field `commodity_equity`.
+
+### GET `/api/admin/users/:userId`
+**Auth required:** ✅ Yes (Admin or Superadmin Bearer token)  
+**URL param:** `:userId` is the custom numeric ID of the user (e.g., `105`)  
+**Purpose:** Fetch the details of a single user. Admins can only fetch users they created. Superadmins can fetch anyone.
+
+**Success Response `200`:**
+*(Same JSON object structure as the list above)*
 
 ### POST `/api/admin/create-user`
 **Auth required:** ✅ Yes (Admin Bearer token)  
-**Purpose:** Create a new user. The `lot_limit` (commodity lots) is deducted from the Admin's pool. (User `equity` for stocks is automatically set to default).
+**Purpose:** Create a new user. The `lot_limit` (commodity lots) is deducted from the Admin's pool. (User `equity` for stocks is automatically set to default $5000).
 
 **Request Body:**
 ```json
@@ -798,10 +813,10 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 }
 ```
 
-### PUT `/api/admin/users/:user_id`
-**Auth required:** ✅ Yes (Admin Bearer token)  
-**URL param:** `:user_id` is the custom numeric ID of the user  
-**Purpose:** Update a user's limits or trading permissions. An admin can only update users they created.
+### PUT `/api/admin/users/:userId`
+**Auth required:** ✅ Yes (Admin or Superadmin Bearer token)  
+**URL param:** `:userId` is the custom numeric ID of the user  
+**Purpose:** Update a user's limits or trading permissions. An admin can only update users they created. Superadmins can update anyone.
 
 **Request Body** *(send only what you want to change):*
 ```json
@@ -813,3 +828,4 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
   "can_trade_commodities": true
 }
 ```
+> 💡 **Tip:** When updating the lot limit from the frontend, send it as `lot_limit` in the request body. The backend will automatically map and save this as `commodity_equity` in the database to remain compatible with the trading engine.
