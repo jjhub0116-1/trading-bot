@@ -165,3 +165,27 @@ exports.getUsers = async (req, res) => {
         res.status(500).send({ error: 'Server error fetching users' });
     }
 };
+
+exports.getUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        let user;
+        
+        if (req.user.role === 'superadmin') {
+            // Superadmin can see any user or admin
+            user = await User.findOne({ user_id: userId, role: { $in: ['user', 'admin'] } }).select('-password');
+        } else {
+            // Admin can only see users they created
+            user = await User.findOne({ user_id: userId, created_by: req.user.id }).select('-password');
+        }
+
+        if (!user) {
+            return res.status(404).send({ error: 'User not found or you do not have permission' });
+        }
+
+        res.status(200).send(user);
+    } catch (error) {
+        console.error('Get user error:', error);
+        res.status(500).send({ error: 'Server error fetching user details' });
+    }
+};
