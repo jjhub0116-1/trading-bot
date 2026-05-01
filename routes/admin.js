@@ -6,9 +6,9 @@ const authMiddleware = require('../middleware/authMiddleware');
 // Superadmin routes
 router.post('/create-admin', authMiddleware, authMiddleware.isSuperAdmin, adminController.createAdmin);
 
-// Admin routes
-router.get('/users', authMiddleware, authMiddleware.isAdmin, adminController.getUsers);
+// Admin and Superadmin routes
+router.get('/users', authMiddleware, authMiddleware.isAdminOrSuperAdmin, adminController.getUsers);
 router.post('/create-user', authMiddleware, authMiddleware.isAdmin, adminController.createUser);
-router.put('/users/:userId', authMiddleware, authMiddleware.isAdmin, adminController.updateUser);
+router.put('/users/:userId', authMiddleware, authMiddleware.isAdminOrSuperAdmin, adminController.updateUser);
 
 module.exports = router;

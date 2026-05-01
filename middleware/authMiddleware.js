@@ -29,6 +29,14 @@ authMiddleware.isSuperAdmin = (req, res, next) => {
     }
 };
 
+authMiddleware.isAdminOrSuperAdmin = (req, res, next) => {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'superadmin')) {
+        next();
+    } else {
+        return res.status(403).json({ success: false, error: 'Access denied. Admin or Superadmin only.' });
+    }
+};
+
 authMiddleware.isAdmin = (req, res, next) => {
     if (req.user && req.user.role === 'admin') {
         next();

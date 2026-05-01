@@ -95,8 +95,17 @@ exports.updateUser = async (req, res) => {
         const { userId } = req.params; // Custom user_id
         const updates = req.body;
         
+        // Admin or Superadmin executing the update
         const admin = await User.findOne({ user_id: req.user.id });
-        const user = await User.findOne({ user_id: userId, created_by: req.user.id });
+        
+        let user;
+        if (req.user.role === 'superadmin') {
+            // Superadmin can update any user or admin
+            user = await User.findOne({ user_id: userId, role: { $in: ['user', 'admin'] } });
+        } else {
+            // Admin can only update users they created
+            user = await User.findOne({ user_id: userId, created_by: req.user.id });
+        }
 
         if (!admin || !user) {
             return res.status(404).send({ error: 'User not found or you do not have permission' });
@@ -142,8 +151,14 @@ exports.updateUser = async (req, res) => {
 
 exports.getUsers = async (req, res) => {
     try {
-        // Find all users created by this admin
-        const users = await User.find({ created_by: req.user.id }).select('-password');
+        let users;
+        if (req.user.role === 'superadmin') {
+            // Superadmin can see all users and admins
+            users = await User.find({ role: { $in: ['user', 'admin'] } }).select('-password');
+        } else {
+            // Admin can only see users they created
+            users = await User.find({ created_by: req.user.id }).select('-password');
+        }
         res.status(200).send(users);
     } catch (error) {
         console.error('Get users error:', error);
