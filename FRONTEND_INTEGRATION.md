@@ -738,7 +738,7 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 | `POST` | `/api/admin/create-admin` | ✅ (Superadmin) | — | Create a new admin account |
 | `GET` | `/api/admin/users` | ✅ (Admin/Superadmin) | — | Fetch list of users (Superadmin sees all, Admin sees created by them) |
 | `GET` | `/api/admin/users/:userId` | ✅ (Admin/Superadmin) | Custom `userId` | Fetch details of a specific user |
-| `POST` | `/api/admin/create-user` | ✅ (Admin) | — | Create a new user account |
+| `POST` | `/api/admin/create-user` | ✅ (Admin/Superadmin) | — | Create a new user account |
 | `PUT` | `/api/admin/users/:userId` | ✅ (Admin/Superadmin) | Custom `userId` | Update user limits/flags |
 
 ---
@@ -797,8 +797,8 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 *(Same JSON object structure as the list above)*
 
 ### POST `/api/admin/create-user`
-**Auth required:** ✅ Yes (Admin Bearer token)  
-**Purpose:** Create a new user. The `lot_limit` (commodity lots) is deducted from the Admin's pool. (User `equity` for stocks is automatically set to default $5000).
+**Auth required:** ✅ Yes (Admin or Superadmin Bearer token)  
+**Purpose:** Create a new user. The `lot_limit` (commodity lots) is deducted from the Admin/Superadmin's pool. (User `equity` for stocks is automatically set to default $5000).
 
 **Request Body:**
 ```json
