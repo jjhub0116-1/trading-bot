@@ -13,6 +13,7 @@ const walletRoutes = require('./routes/wallet');
 const stockRoutes = require('./routes/stocks');
 const adminRoutes = require('./routes/admin');
 const { startPriceFetcher } = require('./modules/priceFetcher');
+const { startTwelveDataStream, stopTwelveDataStream } = require('./modules/twelveDataStream');
 
 const TICK_INTERVAL_MS = 3000; // Ultra fast 3-second heartbeat
 
@@ -57,6 +58,9 @@ async function startBot() {
         // Start live Yahoo Finance price polling (replaces Alpaca stream)
         const priceFetcherInterval = startPriceFetcher();
 
+        // Start real-time Twelve Data WebSocket stream
+        startTwelveDataStream();
+
         const tickInterval = setInterval(async () => {
             try {
                 process.stdout.write('.');
@@ -72,6 +76,7 @@ async function startBot() {
             console.log(`\n${signal} received. Shutting down gracefully...`);
             clearInterval(tickInterval);
             clearInterval(priceFetcherInterval);
+            stopTwelveDataStream();
             const mongoose = require('mongoose');
             await mongoose.connection.close();
             console.log('DB connection closed. Exiting.');
