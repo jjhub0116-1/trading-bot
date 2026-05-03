@@ -49,18 +49,27 @@ async function testDetailedAccess() {
         
         console.log("   Fetching Portfolio...");
         res = await fetch(`${BASE_URL}/admin/users/${userId}/portfolio`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
-        if (res.status === 200) console.log("   ✅ Admin fetched portfolio successfully");
-        else throw new Error(`Admin portfolio fetch failed: ${await res.text()}`);
+        if (res.status === 200) {
+            const data = await res.json();
+            console.log("   ✅ Admin fetched portfolio successfully:");
+            console.log(JSON.stringify(data, null, 2));
+        } else throw new Error(`Admin portfolio fetch failed: ${await res.text()}`);
 
-        console.log("   Fetching Wallet...");
+        console.log("\n   Fetching Wallet...");
         res = await fetch(`${BASE_URL}/admin/users/${userId}/wallet`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
-        if (res.status === 200) console.log("   ✅ Admin fetched wallet successfully");
-        else throw new Error(`Admin wallet fetch failed: ${await res.text()}`);
+        if (res.status === 200) {
+            const data = await res.json();
+            console.log("   ✅ Admin fetched wallet successfully:");
+            console.log(JSON.stringify(data, null, 2));
+        } else throw new Error(`Admin wallet fetch failed: ${await res.text()}`);
 
-        console.log("   Fetching Transactions...");
+        console.log("\n   Fetching Transactions...");
         res = await fetch(`${BASE_URL}/admin/users/${userId}/transactions`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
-        if (res.status === 200) console.log("   ✅ Admin fetched transactions successfully");
-        else throw new Error(`Admin transaction fetch failed: ${await res.text()}`);
+        if (res.status === 200) {
+            const data = await res.json();
+            console.log("   ✅ Admin fetched transactions successfully (Last 2):");
+            console.log(JSON.stringify(data.slice(0, 2), null, 2));
+        } else throw new Error(`Admin transaction fetch failed: ${await res.text()}`);
 
         // --- 4. Test Superadmin Access (ANY USER) ---
         console.log("\n4. Testing Superadmin access to ANY user...");
