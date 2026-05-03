@@ -50,6 +50,18 @@ async function testRoleManagement() {
             console.log(`✅ Admin 2 created. ID: ${admin2Data.user_id}`);
         } else throw new Error(await res.text());
 
+        // --- TEST 3b: Superadmin creates User C directly ---
+        console.log("\n--- TEST 3b: Superadmin creates User C directly (20 lots) ---");
+        res = await fetch(`${BASE_URL}/admin/create-user`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${superToken}` },
+            body: JSON.stringify({ user_name: "Superadmin's User", email: `userC_${ts}@propfirm.com`, password: "password123", lot_limit: 20, loss_limit: 500 })
+        });
+        if (res.status === 201) {
+            const superUserData = await res.json();
+            console.log(`✅ Superadmin successfully created User C directly. ID: ${superUserData.user_id}`);
+        } else throw new Error(await res.text());
+
         // --- TEST 4: Admin 1 Login ---
         console.log("\n--- TEST 4: Admin 1 Login ---");
         res = await fetch(`${BASE_URL}/auth/login`, {

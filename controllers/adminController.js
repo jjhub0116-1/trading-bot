@@ -1,5 +1,7 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const WalletTransaction = require('../models/WalletTransaction');
+const { calculatePortfolio, calculateWallet } = require('../modules/tradeCalculations');
 
 async function generateUserId() {
     // Generate a simple unique user_id based on count
@@ -187,5 +189,62 @@ exports.getUser = async (req, res) => {
     } catch (error) {
         console.error('Get user error:', error);
         res.status(500).send({ error: 'Server error fetching user details' });
+    }
+};
+
+exports.getUserPortfolio = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        let user;
+        if (req.user.role === 'superadmin') {
+            user = await User.findOne({ user_id: userId });
+        } else {
+            user = await User.findOne({ user_id: userId, created_by: req.user.id });
+        }
+
+        if (!user) return res.status(404).send({ error: 'User not found or unauthorized' });
+
+        const portfolio = await calculatePortfolio(user.user_id);
+        res.status(200).json(portfolio);
+    } catch (error) {
+        res.status(500).send({ error: error.message });
+    }
+};
+
+exports.getUserWallet = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        let user;
+        if (req.user.role === 'superadmin') {
+            user = await User.findOne({ user_id: userId });
+        } else {
+            user = await User.findOne({ user_id: userId, created_by: req.user.id });
+        }
+
+        if (!user) return res.status(404).send({ error: 'User not found or unauthorized' });
+
+        const wallet = await calculateWallet(user);
+        res.status(200).json(wallet);
+    } catch (error) {
+        res.status(500).send({ error: error.message });
+    }
+};
+
+exports.getUserTransactions = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        let user;
+        if (req.user.role === 'superadmin') {
+            user = await User.findOne({ user_id: userId });
+        } else {
+            user = await User.findOne({ user_id: userId, created_by: req.user.id });
+        }
+
+        if (!user) return res.status(404).send({ error: 'User not found or unauthorized' });
+
+        const txns = await WalletTransaction.find({ user_id: user.user_id }).sort({ timestamp: -1 });
+        res.status(200).json(txns);
+    } catch (error) {
+        res.status(500).send({ error: error.message });
     }
 };

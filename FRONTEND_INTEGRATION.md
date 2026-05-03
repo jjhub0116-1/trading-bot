@@ -740,6 +740,9 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 | `GET` | `/api/admin/users/:userId` | ✅ (Admin/Superadmin) | Custom `userId` | Fetch details of a specific user |
 | `POST` | `/api/admin/create-user` | ✅ (Admin/Superadmin) | — | Create a new user account |
 | `PUT` | `/api/admin/users/:userId` | ✅ (Admin/Superadmin) | Custom `userId` | Update user limits/flags |
+| `GET` | `/api/admin/users/:userId/portfolio` | ✅ (Admin/Superadmin) | Custom `userId` | Fetch detailed portfolio for a specific user |
+| `GET` | `/api/admin/users/:userId/wallet` | ✅ (Admin/Superadmin) | Custom `userId` | Fetch detailed wallet/limits for a specific user |
+| `GET` | `/api/admin/users/:userId/transactions` | ✅ (Admin/Superadmin) | Custom `userId` | Fetch full transaction history for a specific user |
 
 ---
 
@@ -829,3 +832,14 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 }
 ```
 > 💡 **Tip:** When updating the lot limit from the frontend, send it as `lot_limit` in the request body. The backend will automatically map and save this as `commodity_equity` in the database to remain compatible with the trading engine.
+### GET `/api/admin/users/:userId/portfolio`
+**Auth required:** ✅ Yes (Admin or Superadmin Bearer token)  
+**Purpose:** Fetch the real-time portfolio (positions, unrealized P&L, overall P&L) of a specific user.
+
+### GET `/api/admin/users/:userId/wallet`
+**Auth required:** ✅ Yes (Admin or Superadmin Bearer token)  
+**Purpose:** Fetch the wallet status (equity, used equity, commodity lots) of a specific user.
+
+### GET `/api/admin/users/:userId/transactions`
+**Auth required:** ✅ Yes (Admin or Superadmin Bearer token)  
+**Purpose:** Fetch the full transaction history (buy/sell ledger) of a specific user.
