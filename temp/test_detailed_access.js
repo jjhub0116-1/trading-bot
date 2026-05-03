@@ -19,6 +19,9 @@ async function testDetailedAccess() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: 'superadmin@propfirm.com', password: 'password123' })
         });
+        if (res.status !== 200) {
+            throw new Error(`Superadmin login failed (${res.status}): ${await res.text()}`);
+        }
         superToken = (await res.json()).token;
 
         // --- 2. Create Admin and User ---
@@ -33,8 +36,11 @@ async function testDetailedAccess() {
         res = await fetch(`${BASE_URL}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: adminEmail, password: 'password123' })
+            body: JSON.stringify({ email: adminEmail, password: "password123" })
         });
+        if (res.status !== 200) {
+            throw new Error(`Admin login failed (${res.status}): ${await res.text()}`);
+        }
         adminToken = (await res.json()).token;
 
         res = await fetch(`${BASE_URL}/admin/create-user`, {

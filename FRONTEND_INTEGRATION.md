@@ -589,6 +589,9 @@ await modifyOrder('64abc456...', { price: 155, target: 200 });
   "equity": 1000,
   "used_equity": 600,
   "available_equity": 400,
+  "commodity_equity": 20,
+  "used_commodity_equity": 5,
+  "available_commodity_equity": 15,
   "loss_limit": 200
 }
 ```
@@ -832,14 +835,28 @@ If a user's **effective total risk PnL falls below their `-loss_limit`:**
 }
 ```
 > 💡 **Tip:** When updating the lot limit from the frontend, send it as `lot_limit` in the request body. The backend will automatically map and save this as `commodity_equity` in the database to remain compatible with the trading engine.
+
 ### GET `/api/admin/users/:userId/portfolio`
 **Auth required:** ✅ Yes (Admin or Superadmin Bearer token)  
-**Purpose:** Fetch the real-time portfolio (positions, unrealized P&L, overall P&L) of a specific user.
+**Purpose:** Fetch the real-time portfolio (positions, unrealized P&L, overall P&L) of a specific user.  
+- **Admin**: Only works for users they created.
+- **Superadmin**: Works for any user.
+
+**Success Response `200`:** *(Same structure as `GET /api/portfolio`)*
 
 ### GET `/api/admin/users/:userId/wallet`
 **Auth required:** ✅ Yes (Admin or Superadmin Bearer token)  
-**Purpose:** Fetch the wallet status (equity, used equity, commodity lots) of a specific user.
+**Purpose:** Fetch the wallet status (equity, used equity, commodity lots) of a specific user.  
+- **Admin**: Only works for users they created.
+- **Superadmin**: Works for any user.
+
+**Success Response `200`:** *(Same structure as `GET /api/wallet`)*
 
 ### GET `/api/admin/users/:userId/transactions`
 **Auth required:** ✅ Yes (Admin or Superadmin Bearer token)  
-**Purpose:** Fetch the full transaction history (buy/sell ledger) of a specific user.
+**Purpose:** Fetch the full transaction history (buy/sell ledger) of a specific user.  
+- **Admin**: Only works for users they created.
+- **Superadmin**: Works for any user.
+
+**Success Response `200`:** *(Same structure as `GET /api/wallet/transactions`)*
+

@@ -78,7 +78,7 @@ exports.createUser = async (req, res) => {
 
         // Deduct from admin limits
         admin.commodity_equity -= (lot_limit !== undefined ? lot_limit : 20);
-        admin.loss_limit -= loss_limit; 
+        if (loss_limit !== undefined) admin.loss_limit -= loss_limit; 
         await admin.save();
 
         await user.save();
